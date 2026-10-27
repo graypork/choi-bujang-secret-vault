@@ -50,13 +50,16 @@ test('자료 API는 검증된 로그인 요청만 자료를 반환한다', async
   await handler({ method: 'GET', headers: { authorization: 'Bearer verified.token.value' } }, capture.response, {
     verifyLoginAuthorization: async (authorization) => {
       assert.equal(authorization, 'Bearer verified.token.value');
-      return { kind: 'student', userId: 'verified-by-server' };
+      return { kind: 'student', userId: '11111111-1111-4111-8111-111111111111' };
     },
-    readLearningNotesImpl: async () => [{ id: 'n1', title: 't', content: 'c' }],
+    listLearningNotesImpl: async (userId) => {
+      assert.equal(userId, '11111111-1111-4111-8111-111111111111');
+      return [{ id: 'n1', title: 't', body: 'c' }];
+    },
   });
   const result = capture.result();
   assert.equal(result.status, 200);
-  assert.deepEqual(result.body, { notes: [{ id: 'n1', title: 't', content: 'c' }] });
+  assert.deepEqual(result.body, [{ id: 'n1', title: 't', body: 'c' }]);
 });
 
 test('자료 API 소스는 틀의 verify-login을 사용하고 브라우저 userId/role을 신뢰하지 않는다', async () => {
@@ -68,8 +71,8 @@ test('자료 API 소스는 틀의 verify-login을 사용하고 브라우저 user
 
 test('브라우저는 로그인 세션 토큰만 Bearer 헤더로 보내고 로그아웃 시 자료를 지운다', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /Authorization:\s*`Bearer \$\{session\.access_token\}`/u);
-  assert.match(html, /if \(!session\?\.access_token\)/u);
+  assert.match(html, /Authorization:\s*`Bearer \$\{currentSession\.access_token\}`/u);
+  assert.match(html, /if \(!currentSession\?\.access_token\)/u);
   assert.match(html, /로그인 후 자료/u);
   assert.doesNotMatch(html, /(?:userId|role)\s*:/u);
 });
@@ -82,5 +85,5 @@ test('3단계 설정은 Supabase Auth 발급자와 자료 API 허용 경로를 �
     audience: 'authenticated',
     jwksUrl: 'https://rluscctcdfqrrfaxdeya.supabase.co/auth/v1/.well-known/jwks.json',
   });
-  assert.deepEqual(config.allowedRoutes, ['/api/notes']);
+  assert.deepEqual(config.allowedRoutes, ['/api/notes', '/api/notes/:id']);
 });

@@ -24,7 +24,7 @@ test('로그인 전후 화면은 서로 다르고 로그인 실패 이유를 화
 });
 
 test('인증 UI 추가 뒤에도 기존 메모 API 흐름은 유지한다', () => {
-  assert.match(html, /fetch\(['"]\/api\/notes['"]/);
+  assert.match(html, /(?:fetch|apiRequest)\(['"]\/api\/notes['"]/);
   assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*(?:password|jwt|token)/i);
   assert.doesNotMatch(html, /(?:atob|btoa)\(/);
 });

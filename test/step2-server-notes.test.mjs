@@ -11,7 +11,7 @@ async function text(path) {
 
 test('2단계 화면은 정적 data.json 대신 서버 함수에서 메모를 읽는다', async () => {
   const html = await text('public/index.html');
-  assert.match(html, /fetch\(['"]\/api\/notes['"]/u);
+  assert.match(html, /(?:fetch|apiRequest)\(['"]\/api\/notes['"]/u);
   assert.doesNotMatch(html, /fetch\(['"]\/data\.json['"]/u);
 });
 

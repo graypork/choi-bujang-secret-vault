@@ -4,6 +4,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/notes", "destination": "/api/notes/read" }
+    {
+      "source": "/api/notes",
+      "destination": "/api/notes/read"
+    },
+    {
+      "source": "/api/notes/:id",
+      "destination": "/api/notes/item?id=:id"
+    }
   ]
 }
