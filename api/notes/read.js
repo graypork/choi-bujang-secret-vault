@@ -1,3 +1,6 @@
+import config from '../../aleph.config.json' with { type: 'json' };
+import { createLoginVerifier } from '../../src/verify-login.mjs';
+
 function codedError(code) {
   const error = new Error(code);
   error.code = code;
@@ -36,7 +39,10 @@ export async function readLearningNotes({ env = process.env, createClientImpl } 
     : [];
 }
 
-export default async function handler(request, response) {
+export default async function handler(request, response, {
+  verifyLoginAuthorization,
+  readLearningNotesImpl = readLearningNotes,
+} = {}) {
   response.setHeader('Cache-Control', 'no-store');
 
   if (request.method !== 'GET') {
@@ -45,8 +51,32 @@ export default async function handler(request, response) {
     return;
   }
 
+  const authorization = request.headers?.authorization;
+  if (typeof authorization !== 'string' || !authorization.trim()) {
+    response.setHeader('WWW-Authenticate', 'Bearer');
+    response.status(401).json({ error: 'AUTH_REQUIRED' });
+    return;
+  }
+
+  let identity = null;
   try {
-    const notes = await readLearningNotes();
+    const verify = verifyLoginAuthorization ?? createLoginVerifier({
+      config,
+      supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+    });
+    identity = await verify(authorization);
+  } catch {
+    identity = null;
+  }
+
+  if (!identity) {
+    response.setHeader('WWW-Authenticate', 'Bearer');
+    response.status(401).json({ error: 'AUTH_REQUIRED' });
+    return;
+  }
+
+  try {
+    const notes = await readLearningNotesImpl();
     response.status(200).json({ notes });
   } catch (error) {
     const code = error?.code === 'SUPABASE_NOT_CONFIGURED'
