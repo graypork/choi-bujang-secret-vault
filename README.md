@@ -12,6 +12,62 @@
 
 `/api/notes`는 **아직 로그인이나 사용자 확인이 없는 공개 주소**입니다. 서버 함수 안의 secret key 자체는 브라우저로 전달되지 않지만, 공개 사용자가 이 함수를 호출하면 서버가 대신 Supabase를 읽어 메모를 응답합니다. 이 공개 함수 접근은 2단계에서 의도적으로 남아 있는 약점이며 이후 단계에서 인증과 허용 경로로 막아야 합니다.
 
+## 현재 파일에서 가상 메모 문장 확인하기
+
+현재 파일에서 문장이 보이지 않는지 확인할 때 원문을 README나 새 검사 파일에 다시 복사하지 않습니다. 대신 1단계의 옛 공개 커밋에서 네 문장을 임시 파일로 꺼내 검색 패턴으로만 사용합니다. 아래 예시는 Git Bash/macOS/Linux 셸 기준이며 `/tmp`의 파일은 Git에 넣지 않습니다.
+
+먼저 옛 공개 커밋의 `data.json`에서 메모 본문을 임시 패턴 파일로 만듭니다.
+
+```bash
+node - <<'NODE'
+const { execFileSync } = require('node:child_process');
+const { writeFileSync } = require('node:fs');
+const oldCommit = 'd803a28b6af133eb6e55fb83bc64bcacaf7badd2';
+const raw = execFileSync('git', ['show', `${oldCommit}:data.json`], { encoding: 'utf8' });
+const patterns = JSON.parse(raw).notes.map(note => note.content).join('\n') + '\n';
+writeFileSync('/tmp/byte-back-note-patterns.txt', patterns, 'utf8');
+NODE
+```
+
+GitHub 최신 `main` 파일은 다음처럼 확인합니다. 출력이 없으면 현재 `main` 파일에는 옛 네 메모 문장이 없다는 뜻입니다.
+
+```bash
+git fetch origin main
+git grep -nF -f /tmp/byte-back-note-patterns.txt origin/main -- .
+```
+
+현재 프로덕션 배포의 공개 산출물은 배포 주소를 `APP_URL`에 넣고 내려받아 확인합니다. `/data.json`의 HTTP 상태도 함께 기록합니다.
+
+```bash
+APP_URL="https://현재-프로덕션-주소.vercel.app"
+mkdir -p /tmp/byte-back-deploy
+curl -sS "$APP_URL/" -o /tmp/byte-back-deploy/index.html
+curl -sS "$APP_URL/aleph.json" -o /tmp/byte-back-deploy/aleph.json
+curl -sS -o /tmp/byte-back-deploy/data.json -w 'data.json HTTP %{http_code}\n' "$APP_URL/data.json"
+grep -nF -f /tmp/byte-back-note-patterns.txt /tmp/byte-back-deploy/*
+```
+
+2026-10-27 현재 확인 결과는 다음과 같습니다.
+
+- GitHub 최신 `main`에서 옛 네 메모 문장 검색 결과: **0건**.
+- 현재 프로덕션의 `/`와 `/aleph.json`에서 옛 네 메모 문장 검색 결과: **0건**.
+- 현재 프로덕션의 `/data.json`: **404 Not Found**이며 옛 메모 문장은 나오지 않음.
+- `/api/notes`: 주소 자체는 여전히 인증 없이 호출 가능함. 현재 배포에서는 Supabase 환경설정이 없어 **503 `SUPABASE_NOT_CONFIGURED`**이지만, Supabase가 연결되면 이후 인증을 추가하기 전까지 서버가 메모를 공개 응답할 수 있는 약점이 남아 있음.
+
+### 과거 공개 이력은 별도로 남아 있음
+
+위의 0건 결과는 **현재 `main`과 현재 프로덕션 산출물에서 원문이 제거됐다는 확인**일 뿐, 과거 노출이 해소됐다는 뜻이 아닙니다. 이 저장소는 현재 Public이고, 1단계 옛 공개 커밋 `d803a28b6af133eb6e55fb83bc64bcacaf7badd2`의 `data.json`에는 네 가상 메모가 그대로 남아 있습니다. 또한 1단계 옛 Vercel 배포의 `/data.json`도 2026-10-27 현재 **200 OK**로 열리며 같은 네 메모를 반환합니다.
+
+따라서 옛 공개 커밋과 옛 배포가 접근 가능한 동안에는 **“과거 노출이 해소됐다”, “완전히 삭제됐다”, “더 이상 누구도 볼 수 없다”라고 기록하지 않습니다.** 현재 상태는 “최신 코드와 최신 배포의 정적 공개 파일에서는 제거됐지만, 과거 공개 이력은 남아 있음”으로 표현합니다.
+
+옛 커밋과 옛 배포 상태도 필요할 때 각각 다시 확인합니다.
+
+```bash
+git grep -nF -f /tmp/byte-back-note-patterns.txt d803a28b6af133eb6e55fb83bc64bcacaf7badd2 -- data.json public/data.json
+curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.app/data.json" \
+  | grep -nF -f /tmp/byte-back-note-patterns.txt
+```
+
 ## 1단계에서 한 일
 
 1단계에서는 학생 본인의 GitHub 저장소와 Vercel 배포를 만들고 `/`와 공개 가상 자료를 확인했습니다. 2단계부터는 그 공개 정적 자료 흐름을 사용하지 않습니다.
