@@ -1,27 +1,23 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { deploymentIdentity } from './deployment-identity.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const output = resolve(root, 'public', 'data.json');
+const publicDir = resolve(root, 'public');
+const publicData = resolve(publicDir, 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
 
-if (config.step < 2) {
-  throw new Error('2단계부터 공개 data.json에는 메모 본문을 복사하지 않습니다.');
+if (!Number.isInteger(config.step) || config.step < 2) {
+  throw new Error('2단계 이후 빌드는 정적 data.json 대신 서버 자료 API를 사용합니다.');
 }
 
-const publicData = {
-  sampleMarker: config.sampleMarker,
-  notes: [],
-};
-
-await mkdir(resolve(root, 'public'), { recursive: true });
-await writeFile(output, `${JSON.stringify(publicData, null, 2)}\n`, 'utf8');
-console.log('공개 data.json에서 메모 본문을 제거했습니다.');
+await mkdir(publicDir, { recursive: true });
+await rm(publicData, { force: true });
+console.log('정적 public/data.json을 배포 결과에서 제외했습니다.');
 
 if (!process.argv.includes('--local')) {
   const identity = deploymentIdentity(process.env, config);
-  await writeFile(resolve(root, 'public', 'aleph.json'),
+  await writeFile(resolve(publicDir, 'aleph.json'),
     `${JSON.stringify(identity, null, 2)}\n`, 'utf8');
   console.log('배포 저장소·커밋·주소를 public/aleph.json에 기록했습니다.');
 }
