@@ -80,6 +80,18 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 
 로컬 정적 빌드만 확인할 때는 `npm run build -- --local`을 사용합니다. 이 명령은 Vercel 배포나 심판 판정을 증명하지 않습니다.
 
+## 2단계 저장점
+
+- 단계: `aleph.config.json`의 `step`은 `2`.
+- 실제 프로덕션 주소: `https://choi-bujang-secret-vault-one-vert.vercel.app`.
+- 로그인 발급자: 아직 없음 (`identityProvider: null`).
+- 허용 경로: 아직 없음 (`allowedRoutes: []`).
+- 원본 API/복구 경로: 아직 없음 (`originalApiUrl: null`, `restoreRoute: null`).
+- 현재 화면은 `/api/notes`를 호출하고 정적 `/data.json`은 배포하지 않음. `/api/notes`는 아직 인증 없는 공개 주소이며 Supabase 환경변수가 없으면 `503 SUPABASE_NOT_CONFIGURED`를 반환함.
+- 다시 확인: `npm ci`, `node --test test/*.test.mjs`, `npm run build -- --local`, 저장점 커밋 뒤 `npm run bundle`.
+
+이 저장점은 최신 코드/최신 배포의 현재 상태를 기록할 뿐입니다. 옛 공개 커밋과 옛 배포가 접근 가능한 동안 과거 노출이 해소됐다고 기록하지 않습니다.
+
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
 [AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 3단계 이후 로그인과 허용 경로, 5단계의 원본 API 주소, 6단계 이후 정책 규칙은 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
