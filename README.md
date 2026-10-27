@@ -52,7 +52,7 @@ grep -nF -f /tmp/byte-back-note-patterns.txt /tmp/byte-back-deploy/*
 - GitHub 최신 `main`에서 옛 네 메모 문장 검색 결과: **0건**.
 - 현재 프로덕션의 `/`와 `/aleph.json`에서 옛 네 메모 문장 검색 결과: **0건**.
 - 현재 프로덕션의 `/data.json`: **404 Not Found**이며 옛 메모 문장은 나오지 않음.
-- `/api/notes`: 주소 자체는 여전히 인증 없이 호출 가능함. 현재 배포에서는 Supabase 환경설정이 없어 **503 `SUPABASE_NOT_CONFIGURED`**이지만, Supabase가 연결되면 이후 인증을 추가하기 전까지 서버가 메모를 공개 응답할 수 있는 약점이 남아 있음.
+- `/api/notes`: 주소 자체는 여전히 인증 없이 호출 가능함. 현재 배포에서는 **200 OK**로 가상 메모 4건을 반환하며, 인증을 추가하기 전까지 서버가 메모를 공개 응답할 수 있는 약점이 남아 있음.
 
 ### 과거 공개 이력은 별도로 남아 있음
 
@@ -76,7 +76,7 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 
 `vercel.json`은 정적 결과물 `public`을 배포하면서 `api/` 아래의 Vercel 서버 함수도 함께 사용합니다. 빌드 명령 `npm run build`는 2단계 이후 정적 `public/data.json`을 제거하고, Vercel이 제공하는 GitHub 저장소 소유자·이름, 커밋 SHA, 배포 URL을 검증해 `public/aleph.json`을 생성합니다. `aleph.json`만으로 저장소 소유권이나 방어 성공을 인정하지 않으며 심판이 실제 공개 저장소와 배포 결과를 따로 대조합니다.
 
-`aleph.config.json`의 현재 단계는 `2`입니다. `repoUrl`과 `publicAppUrl` 자리표시자는 이전 제출 묶음 방식의 값이며 이번 단계에서 비밀값을 적는 곳이 아닙니다.
+`aleph.config.json`의 현재 단계는 `2`입니다. `repoUrl`은 실제 GitHub 저장소 주소이고 `publicAppUrl`은 실제 프로덕션 배포 주소입니다. 둘 다 공개 식별자이며 비밀값을 적는 곳이 아닙니다.
 
 로컬 정적 빌드만 확인할 때는 `npm run build -- --local`을 사용합니다. 이 명령은 Vercel 배포나 심판 판정을 증명하지 않습니다.
 
@@ -87,7 +87,7 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 - 로그인 발급자: 아직 없음 (`identityProvider: null`).
 - 허용 경로: 아직 없음 (`allowedRoutes: []`).
 - 원본 API/복구 경로: 아직 없음 (`originalApiUrl: null`, `restoreRoute: null`).
-- 현재 화면은 `/api/notes`를 호출하고 정적 `/data.json`은 배포하지 않음. `/api/notes`는 아직 인증 없는 공개 주소이며 Supabase 환경변수가 없으면 `503 SUPABASE_NOT_CONFIGURED`를 반환함.
+- 현재 화면은 `/api/notes`를 호출하고 정적 `/data.json`은 배포하지 않음. 현재 `/api/notes`는 아직 인증 없는 공개 주소이며 **200 OK로 가상 메모 4건을 반환함**. `/data.json`은 **404 Not Found**임.
 - 다시 확인: `npm ci`, `node --test test/*.test.mjs`, `npm run build -- --local`, 저장점 커밋 뒤 `npm run bundle`.
 
 이 저장점은 최신 코드/최신 배포의 현재 상태를 기록할 뿐입니다. 옛 공개 커밋과 옛 배포가 접근 가능한 동안 과거 노출이 해소됐다고 기록하지 않습니다.
