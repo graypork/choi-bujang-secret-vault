@@ -77,13 +77,13 @@ test('브라우저는 로그인 세션 토큰만 Bearer 헤더로 보내고 로�
   assert.doesNotMatch(html, /(?:userId|role)\s*:/u);
 });
 
-test('3단계 설정은 Supabase Auth 발급자와 자료 API 허용 경로를 기록한다', async () => {
+test('현재 설정은 Supabase Auth 발급자와 실제 CRUD 메서드·경로를 기록한다', async () => {
   const config = JSON.parse(await readFile(new URL('../aleph.config.json', import.meta.url), 'utf8'));
-  assert.equal(config.step, 3);
+  assert.equal(config.step, 4);
   assert.deepEqual(config.identityProvider, {
     issuer: 'https://rluscctcdfqrrfaxdeya.supabase.co/auth/v1',
     audience: 'authenticated',
     jwksUrl: 'https://rluscctcdfqrrfaxdeya.supabase.co/auth/v1/.well-known/jwks.json',
   });
-  assert.deepEqual(config.allowedRoutes, ['/api/notes', '/api/notes/:id']);
+  assert.deepEqual(config.allowedRoutes, ['GET /api/notes', 'POST /api/notes', 'GET /api/notes/:id', 'PUT /api/notes/:id', 'DELETE /api/notes/:id']);
 });

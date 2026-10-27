@@ -76,23 +76,23 @@ test('POST 무로그인 요청은 store 호출 없이 401로 거부한다', asyn
   assert.deepEqual(recorder.result().body, { error: 'AUTH_REQUIRED' });
 });
 
-test('단건 GET은 로그인만 검사하고 ownerId 없이 id로 조회해 {id,title,body}를 반환한다', async () => {
+test('단건 GET은 verified userId와 id를 store에 넘겨 {id,title,body}를 반환한다', async () => {
   const handler = await itemHandler();
   const recorder = responseRecorder();
   let args;
   await handler({ method: 'GET', headers: { authorization: 'Bearer test.token.value' }, query: { id: NOTE_ID } }, recorder.response, {
-    verifyLoginAuthorization: verifiedB,
+    verifyLoginAuthorization: verifiedA,
     getLearningNoteImpl: async (...received) => {
       args = received;
       return { id: NOTE_ID, title: 'A 메모', body: '본문' };
     },
   });
-  assert.deepEqual(args, [NOTE_ID]);
+  assert.deepEqual(args, [A_ID, NOTE_ID]);
   assert.equal(recorder.result().statusCode, 200);
   assert.deepEqual(recorder.result().body, { id: NOTE_ID, title: 'A 메모', body: '본문' });
 });
 
-test('단건 PUT은 /:id와 {title,body}로 수정하며 owner 검사는 아직 하지 않는다', async () => {
+test('단건 PUT은 verified userId, /:id와 {title,body}로 수정한다', async () => {
   const handler = await itemHandler();
   const recorder = responseRecorder();
   let args;
@@ -100,10 +100,10 @@ test('단건 PUT은 /:id와 {title,body}로 수정하며 owner 검사는 아직 
     method: 'PUT', headers: { authorization: 'Bearer test.token.value' }, query: { id: NOTE_ID },
     body: { title: '수정', body: '수정 본문' },
   }, recorder.response, {
-    verifyLoginAuthorization: verifiedB,
+    verifyLoginAuthorization: verifiedA,
     updateLearningNoteImpl: async (...received) => { args = received; return { id: NOTE_ID }; },
   });
-  assert.deepEqual(args, [NOTE_ID, { title: '수정', body: '수정 본문' }]);
+  assert.deepEqual(args, [A_ID, NOTE_ID, { title: '수정', body: '수정 본문' }]);
   assert.equal(recorder.result().statusCode, 200);
   assert.deepEqual(recorder.result().body, { id: NOTE_ID });
 });
@@ -114,7 +114,7 @@ test('단건 DELETE 뒤 같은 id GET은 404가 될 수 있는 계약을 사용�
   const deleteRecorder = responseRecorder();
   await handler({ method: 'DELETE', headers: { authorization: 'Bearer test.token.value' }, query: { id: NOTE_ID } }, deleteRecorder.response, {
     verifyLoginAuthorization: verifiedA,
-    deleteLearningNoteImpl: async id => { assert.equal(id, NOTE_ID); exists = false; return { id }; },
+    deleteLearningNoteImpl: async (userId, id) => { assert.equal(userId, A_ID); assert.equal(id, NOTE_ID); exists = false; return { id }; },
   });
   assert.equal(deleteRecorder.result().statusCode, 200);
 
@@ -138,12 +138,12 @@ test('단건 무로그인 요청은 자료 없이 401로 거부한다', async ()
   assert.equal(recorder.result().statusCode, 401);
 });
 
-test('서버 소스는 목록 owner_id 필터와 POST owner_id 저장을 하고 단건 소스에는 owner 필터가 없다', async () => {
+test('서버 소스는 목록·생성·단건 CRUD 모두 verified owner_id를 사용한다', async () => {
   const collection = await readFile(new URL('../api/notes/read.js', import.meta.url), 'utf8');
   const item = await readFile(new URL('../api/notes/item.js', import.meta.url), 'utf8');
   assert.match(collection, /eq\(['"]owner_id['"],\s*userId\)/u);
   assert.match(collection, /owner_id:\s*userId/u);
-  assert.doesNotMatch(item, /owner_id/u);
+  assert.match(item, /owner_id/u);
   assert.doesNotMatch(collection, /request\.(?:body|query)(?:\?\.)?(?:userId|role)/u);
   assert.doesNotMatch(item, /request\.(?:body|query)(?:\?\.)?(?:userId|role)/u);
 });
@@ -162,7 +162,7 @@ test('CRUD 화면과 allowedRoutes는 실제 컬렉션/단건 경로를 사용�
   assert.match(html, /method:\s*['"]PUT['"]/u);
   assert.match(html, /method:\s*['"]DELETE['"]/u);
   assert.match(html, /note\.body/u);
-  assert.deepEqual(config.allowedRoutes, ['/api/notes', '/api/notes/:id']);
+  assert.deepEqual(config.allowedRoutes, ['GET /api/notes', 'POST /api/notes', 'GET /api/notes/:id', 'PUT /api/notes/:id', 'DELETE /api/notes/:id']);
 });
 
 // Guard the starter verifier as requested.

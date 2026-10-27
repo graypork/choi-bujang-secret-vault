@@ -13,40 +13,54 @@ function noteId(request) {
   return id;
 }
 
-export async function getLearningNote(id, options = {}) {
+export async function getLearningNote(userId, id, options = {}) {
   const supabase = await createNotesClient(options);
   const { data, error } = await supabase
     .from('learning_notes')
-    .select('id, title, content')
+    .select('id, title, content, owner_id')
     .eq('id', id)
+    .eq('owner_id', userId)
     .maybeSingle();
   if (error) throw codedError('DATA_SOURCE_UNAVAILABLE');
-  return data ? { id: data.id, title: data.title, body: data.content } : null;
+  if (!data || data.owner_id !== userId) return null;
+  return { id: data.id, title: data.title, body: data.content };
 }
 
-export async function updateLearningNote(id, rawInput, options = {}) {
+export async function updateLearningNote(userId, id, rawInput, options = {}) {
   const input = normalizeNoteInput(rawInput, { allowId: false });
   const supabase = await createNotesClient(options);
+
+  const { data: existing, error: existingError } = await supabase
+    .from('learning_notes')
+    .select('id, owner_id')
+    .eq('id', id)
+    .eq('owner_id', userId)
+    .maybeSingle();
+  if (existingError) throw codedError('DATA_SOURCE_UNAVAILABLE');
+  if (!existing || existing.owner_id !== userId) return null;
+
   const { data, error } = await supabase
     .from('learning_notes')
     .update({ title: input.title, content: input.body })
     .eq('id', id)
-    .select('id')
+    .eq('owner_id', userId)
+    .select('id, owner_id')
     .maybeSingle();
   if (error) throw codedError('DATA_SOURCE_UNAVAILABLE');
-  return data?.id ? { id: data.id } : null;
+  return data?.id && data.owner_id === userId ? { id: data.id } : null;
 }
 
-export async function deleteLearningNote(id, options = {}) {
+export async function deleteLearningNote(userId, id, options = {}) {
   const supabase = await createNotesClient(options);
   const { data, error } = await supabase
     .from('learning_notes')
     .delete()
     .eq('id', id)
-    .select('id')
+    .eq('owner_id', userId)
+    .select('id, owner_id')
     .maybeSingle();
   if (error) throw codedError('DATA_SOURCE_UNAVAILABLE');
-  return data?.id ? { id: data.id } : null;
+  return data?.id && data.owner_id === userId ? { id: data.id } : null;
 }
 
 function sendDataError(response, error) {
@@ -84,7 +98,7 @@ export default async function handler(request, response, {
   try {
     const id = noteId(request);
     if (request.method === 'GET') {
-      const note = await getLearningNoteImpl(id);
+      const note = await getLearningNoteImpl(identity.userId, id);
       if (!note) {
         response.status(404).json({ error: 'NOT_FOUND' });
         return;
@@ -95,7 +109,7 @@ export default async function handler(request, response, {
 
     if (request.method === 'PUT') {
       const input = normalizeNoteInput(request.body, { allowId: false });
-      const updated = await updateLearningNoteImpl(id, input);
+      const updated = await updateLearningNoteImpl(identity.userId, id, input);
       if (!updated) {
         response.status(404).json({ error: 'NOT_FOUND' });
         return;
@@ -104,7 +118,7 @@ export default async function handler(request, response, {
       return;
     }
 
-    const deleted = await deleteLearningNoteImpl(id);
+    const deleted = await deleteLearningNoteImpl(identity.userId, id);
     if (!deleted) {
       response.status(404).json({ error: 'NOT_FOUND' });
       return;
