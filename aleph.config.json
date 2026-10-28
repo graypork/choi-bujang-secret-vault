@@ -1,5 +1,5 @@
 {
-  "step": 4,
+  "step": 5,
   "repoUrl": "https://github.com/graypork/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-one-vert.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
