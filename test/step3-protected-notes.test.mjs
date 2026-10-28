@@ -79,7 +79,7 @@ test('브라우저는 로그인 세션 토큰만 Bearer 헤더로 보내고 로�
 
 test('현재 설정은 Supabase Auth 발급자와 실제 CRUD 메서드·경로를 기록한다', async () => {
   const config = JSON.parse(await readFile(new URL('../aleph.config.json', import.meta.url), 'utf8'));
-  assert.equal(config.step, 4);
+  assert.equal(config.step, 5);
   assert.deepEqual(config.identityProvider, {
     issuer: 'https://rluscctcdfqrrfaxdeya.supabase.co/auth/v1',
     audience: 'authenticated',
