@@ -69,10 +69,11 @@ test('자료 API 소스는 틀의 verify-login을 사용하고 브라우저 user
   assert.doesNotMatch(source, /request\.(?:body|query)\??\.(?:userId|role)/u);
 });
 
-test('브라우저는 로그인 세션 토큰만 Bearer 헤더로 보내고 로그아웃 시 자료를 지운다', async () => {
+test('브라우저는 로그인 토큰을 다루지 않고 same-origin 서버 세션만 사용한다', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /Authorization:\s*`Bearer \$\{currentSession\.access_token\}`/u);
-  assert.match(html, /if \(!currentSession\?\.access_token\)/u);
+  assert.doesNotMatch(html, /Authorization\s*:/u);
+  assert.doesNotMatch(html, /access_token/u);
+  assert.match(html, /\/api\/auth\/session/u);
   assert.match(html, /로그인 후 자료/u);
   assert.doesNotMatch(html, /(?:userId|role)\s*:/u);
 });

@@ -1,5 +1,6 @@
 import config from '../../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../../src/verify-login.mjs';
+import { requestAuthorization } from '../../src/auth-session.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -26,8 +27,8 @@ export async function createNotesClient({ env = process.env, createClientImpl } 
 }
 
 export async function verifyRequestIdentity(request, verifyLoginAuthorization) {
-  const authorization = request.headers?.authorization;
-  if (typeof authorization !== 'string' || !authorization.trim()) return null;
+  const authorization = requestAuthorization(request);
+  if (!authorization) return null;
 
   try {
     const verify = verifyLoginAuthorization ?? createLoginVerifier({
