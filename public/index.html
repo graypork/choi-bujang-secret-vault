@@ -33,10 +33,10 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계 로그인 자료 CRUD</div>
+    <div class="eyebrow">BYTE BACK · 5단계 서버 로그인 자료 CRUD</div>
     <h1>자료실</h1>
     <p>로그인한 사용자는 자신의 가상 메모 목록을 보고 새 메모를 추가할 수 있습니다.</p>
-    <div class="notice">목록과 생성은 로그인 사용자 ID를 사용합니다. 단건 수정·삭제의 소유자 검사는 4단계에서 추가합니다.</div>
+    <div class="notice">로그인과 메모 요청은 서버 함수를 통하며, 서버가 확인한 사용자와 소유권만 신뢰합니다.</div>
 
     <section class="panel" aria-labelledby="auth-title">
       <h2 id="auth-title">로그인</h2>
@@ -80,12 +80,6 @@
   </main>
 
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2';
-
-    const SUPABASE_URL = 'https://rluscctcdfqrrfaxdeya.supabase.co';
-    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_dzxf7yQs2uiDOq_7CydAKA_aBoh2n6U';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
     const signedOut = document.querySelector('#auth-signed-out');
     const signedIn = document.querySelector('#auth-signed-in');
     const authError = document.querySelector('#auth-error');
@@ -133,14 +127,36 @@
       list.replaceChildren(item);
     }
 
-    async function apiRequest(path, options = {}) {
-      if (!currentSession?.access_token) throw new Error('로그인이 필요하거나 세션이 만료되었습니다.');
+    async function restoreSession() {
+      const response = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
+      if (!response.ok) {
+        currentSession = null;
+        renderAuth(null);
+        showSignedOutNotes();
+        return false;
+      }
+      const session = await response.json();
+      if (!session?.authenticated) return false;
+      currentSession = session;
+      renderAuth(session);
+      return true;
+    }
+
+    async function apiRequest(path, options = {}, allowRefresh = true) {
       const headers = {
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...(options.headers ?? {}),
-        Authorization: `Bearer ${currentSession.access_token}`,
       };
-      return fetch(path, { cache: 'no-store', ...options, headers });
+      let response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options, headers });
+      if (response.status === 401 && allowRefresh && await restoreSession()) {
+        response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options, headers });
+      }
+      if (response.status === 401) {
+        currentSession = null;
+        renderAuth(null);
+        showSignedOutNotes();
+      }
+      return response;
     }
 
     function startEdit(note) {
@@ -199,7 +215,7 @@
 
     async function loadNotes(session) {
       currentSession = session;
-      if (!session?.access_token) {
+      if (!session?.authenticated) {
         showSignedOutNotes();
         return;
       }
@@ -222,12 +238,6 @@
       }
     }
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      currentSession = session;
-      renderAuth(session);
-      void loadNotes(session);
-    });
-
     loginForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       authError.textContent = '';
@@ -235,19 +245,36 @@
       const email = document.querySelector('#auth-email').value.trim();
       const passwordInput = document.querySelector('#auth-password');
       const password = passwordInput.value;
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      loginButton.disabled = false;
-      if (error) {
-        authError.textContent = error.code ? `${error.code}: ${error.message}` : error.message;
-        return;
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          authError.textContent = result.error === 'INVALID_LOGIN'
+            ? '이메일 또는 비밀번호를 확인해 주세요.'
+            : '로그인할 수 없습니다.';
+          return;
+        }
+        passwordInput.value = '';
+        currentSession = result;
+        renderAuth(result);
+        await loadNotes(result);
+      } finally {
+        loginButton.disabled = false;
       }
-      passwordInput.value = '';
     });
 
     logoutButton.addEventListener('click', async () => {
       authError.textContent = '';
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      if (error) authError.textContent = error.code ? `${error.code}: ${error.message}` : error.message;
+      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      if (!response.ok) { authError.textContent = '로그아웃하지 못했습니다.'; return; }
+      currentSession = null;
+      renderAuth(null);
+      showSignedOutNotes();
     });
 
     noteForm.addEventListener('submit', async (event) => {
@@ -271,6 +298,10 @@
     });
 
     noteCancel.addEventListener('click', resetNoteForm);
+
+    void (async () => {
+      if (await restoreSession()) await loadNotes(currentSession);
+    })();
   </script>
 </body>
 </html>
