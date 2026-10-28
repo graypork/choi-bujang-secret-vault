@@ -8,9 +8,9 @@
 
 한 건 응답은 `{id,title,body}`, 수정 본문은 `{title,body}`를 유지합니다. `public/data.json`은 계속 배포하지 않으며 `/aleph.json`은 빌드에서 생성됩니다. 첫 화면과 API 응답에는 `X-Content-Type-Options: nosniff` 헤더를 적용합니다.
 
-### 현재 남아 있는 작업
+### 현재 4단계 방어 상태
 
-API의 소유자 검사는 적용됐지만 학습 DB의 역할 권한과 RLS 정책은 아직 별도 적용 전입니다. `public.learning_notes`에 대해서만 `anon` 권한을 제거하고 `authenticated`에 필요한 CRUD 권한만 부여한 뒤, SELECT·INSERT·UPDATE·DELETE 정책 모두 `auth.uid() = owner_id`를 강제하는 DB 방어층을 추가해야 합니다. 기존 가상 메모의 `owner_id` 연결과 B 소유 시험 메모 준비도 DB 검증 전에 완료해야 합니다.
+API 소유자 검사와 학습 DB 방어층을 모두 적용했습니다. `public.learning_notes`는 RLS가 활성화되어 있고 `anon`에는 테이블 권한이 없으며, `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 부여되어 있습니다. SELECT·DELETE는 기존 행의 `owner_id`, INSERT는 새 행의 `owner_id`, UPDATE는 기존 행과 수정 후 행의 `owner_id`가 모두 `(select auth.uid())`와 같을 때만 허용합니다. 학습 데이터는 A 소유 4건과 B 소유 1건으로 준비했고 `owner_id IS NULL` 행은 0건입니다. 실제 앱에서 A와 B로 각각 로그인해 서로 자기 메모만 보이는 것도 확인했습니다.
 
 ## 현재 파일에서 가상 메모 문장 확인하기
 
@@ -105,7 +105,7 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 - 정적 `/data.json`은 **404**, `/aleph.json`은 배포에서 열리며, `X-Content-Type-Options: nosniff` 보안 헤더가 설정됨.
 - 다시 확인: `npm ci`, `node --test test/*.test.mjs`, `npm run build -- --local`. `npm run bundle`은 3단계 `src/attack-check.mjs` 자기 점검이 최신 단계에 맞게 구현되기 전에는 완료됐다고 기록하지 않음.
 
-## 4단계 진행 상태
+## 4단계 저장점
 
 - `aleph.config.json`의 `step`은 `4`.
 - API 소유권 검사 커밋: `927b1a32857db4e7a0f8f13c8a2abe105b81737e` (`Enforce note ownership in API`).
@@ -113,10 +113,14 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 - 단건 GET·PUT·DELETE는 `id + owner_id`를 함께 제한하며 상대 소유 메모는 자료를 노출하지 않고 404 처리함.
 - PUT은 기존 행과 수정 결과 모두 본인 소유인지 확인하며 `{title,body}`만 갱신해 `owner_id` 변경을 허용하지 않음.
 - 실제 CRUD 메서드·경로 5개가 `allowedRoutes`에 기록됨.
-- DB 쪽 RLS/최소 권한 SQL과 A/B 소유 데이터 준비는 아직 적용 전이며 별도 검증 후 4단계 저장점으로 남길 예정.
+- `public.learning_notes`는 RLS 활성화. 정책은 SELECT·INSERT·UPDATE·DELETE 4개이며 모두 `auth.uid() = owner_id` 소유권 조건을 사용함. UPDATE는 `USING`과 `WITH CHECK`를 모두 적용함.
+- 테이블 권한은 `anon`에 없음. `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 있고 TRUNCATE·REFERENCES·TRIGGER는 없음.
+- 학습 데이터는 A 소유 4건, B 소유 1건, `owner_id IS NULL` 0건으로 확인함.
+- 실제 앱 로그인 확인에서 A는 A 메모만, B는 B 메모만 보였음.
+- 이 DB 설정은 `public.learning_notes` 한 테이블에만 적용했으며 다른 테이블은 변경하지 않음.
 
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
-[AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 4단계에서는 API 소유권 검사에 이어 `public.learning_notes` 한 테이블의 RLS·최소 권한과 A/B 소유 데이터 검증을 마무리하고, 5단계의 원본 API 주소와 이후 정책 규칙은 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
+[AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 4단계의 API 소유권 검사와 `public.learning_notes` RLS·최소 권한, A/B 소유 데이터 검증은 완료됐습니다. 다음 작업은 5단계의 원본 API 주소와 이후 정책 규칙을 해당 단계 원고와 계약에 맞춰 추가합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
 
 `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 반 엔진이나 운영 심판의 결과가 아닙니다. 1단계 이후 제출 묶음 계약 `aleph.defense.submission.v2`는 `scripts/bundle.mjs`에 남아 있으며, 코딩 도구가 해당 단계의 최신 배포 주소와 Git 원격을 맞춘 뒤 사용합니다.
