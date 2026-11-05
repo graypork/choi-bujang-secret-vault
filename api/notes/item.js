@@ -89,6 +89,7 @@ export default async function handler(request, response, {
     return;
   }
 
+  // 서버가 검증한 신원만 DB 소유권 필터에 전달합니다. 요청 role은 사용하지 않습니다.
   const identity = await verifyRequestIdentity(request, verifyLoginAuthorization);
   if (!identity) {
     response.setHeader('WWW-Authenticate', 'Bearer');
