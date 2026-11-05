@@ -135,24 +135,4 @@ export default async function handler(request, response, {
   response.status(403).json({ error: 'RESOURCE_ZONE_DENIED' });
   return;
 
-  const identity = await verifyRequestIdentity(request, verifyLoginAuthorization);
-  if (!identity) {
-    response.setHeader('WWW-Authenticate', 'Bearer');
-    response.status(401).json({ error: 'AUTH_REQUIRED' });
-    return;
-  }
-
-  try {
-    if (request.method === 'GET') {
-      const notes = await listLearningNotesImpl(identity.userId);
-      response.status(200).json(notes);
-      return;
-    }
-
-    const input = normalizeNoteInput(request.body);
-    const created = await createLearningNoteImpl(identity.userId, input);
-    response.status(201).json(created);
-  } catch (error) {
-    sendDataError(response, error);
-  }
 }
