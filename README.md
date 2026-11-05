@@ -4,7 +4,7 @@
 
 ## 현재 상태: 5단계 「자료 요청을 서버 한곳으로 모읍니다」
 
-브라우저의 Supabase Auth 로그인 호출은 유지하되, 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
+로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
 한 건 응답은 `{id,title,body}`, 수정 본문은 `{title,body}`를 유지합니다. `public/data.json`은 계속 배포하지 않으며 `/aleph.json`은 빌드에서 생성됩니다. 첫 화면과 API 응답에는 `X-Content-Type-Options: nosniff` 헤더를 적용합니다.
 
@@ -122,7 +122,7 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 ## 5단계 저장점
 
 - `aleph.config.json`의 `step`은 `5`.
-- 브라우저의 Supabase Auth 로그인 호출은 유지하고, 메모 자료 CRUD는 서버 함수 `/api/notes`, `/api/notes/:id`로만 요청함.
+- 최신 구현에서는 로그인·세션·로그아웃도 `/api/auth/*` 서버 함수로 처리하고 HttpOnly 쿠키를 사용함. 브라우저의 Supabase SDK·공개 키는 제거했으며, 메모 CRUD는 서버 함수 `/api/notes`, `/api/notes/:id`로만 요청함.
 - 서버 함수의 로그인 검증, `owner_id` 소유자 검사, 서버 전용 Supabase 설정은 그대로 유지함.
 - `public.learning_notes`의 `PUBLIC`, `anon`, `authenticated` 직접 테이블 권한은 모두 없음. `service_role`의 서버 작업 권한은 유지됨.
 - 기존 RLS 소유권 정책 4개는 유지하며 다른 테이블은 변경하지 않음.
