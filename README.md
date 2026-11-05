@@ -131,6 +131,19 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 - 실제 앱에서 A 계정의 목록 읽기·추가·수정·삭제가 서버 함수 경유로 정상 동작함.
 - 다시 확인: `npm ci`, `node --test test/*.test.mjs`, `npm run build -- --local`, 저장점 커밋 뒤 `npm run bundle`.
 
+## 6단계 기기 등록 판정 — 로컬 확인 순서
+
+1. 저장소 루트에서 `npm run decider:test`를 실행합니다. 별도 접속 프로그램 설치는 필요하지 않습니다.
+2. 출력에서 `통과 · 등록 기기의 정상 요청`을 확인합니다. 등록 기기(`deviceRegistered: true`)의 판정은 `allow`, 이유 코드는 `approved`입니다.
+3. 출력에서 `통과 · 미등록 기기의 가상 요청`을 확인합니다. 미등록 기기(`deviceRegistered: false`)의 판정은 `deny`, 이유 코드는 `device_not_registered`입니다. 값이 누락되어도 같은 이유로 거부합니다.
+4. 거부 이유 코드까지 직접 확인하려면 아래 명령을 실행합니다.
+
+```bash
+node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=await decide({requestId:'fixture-unregistered',deviceRegistered:false}); console.log(r.decision,r.reasonCode);"
+```
+
+정상 출력은 `deny device_not_registered`입니다. 2026-11-05 로컬 가상 요청 테스트에서 등록·미등록 항목 모두 통과했고 미등록 응답의 `decision: deny`, `reasonCode: device_not_registered`를 확인했습니다. 이 확인은 운영 엔진의 실제 기기 등록이나 심판의 미등록 기기 공격 결과를 뜻하지 않습니다. 실제 미등록 기기 공격은 심판이 수행합니다. 인증서·CA·서명 키나 별도 접속 프로그램은 생성·설치하지 않습니다.
+
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
 [AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 5단계의 서버 함수 집중 경로, 원본 API 주소 기록, 원본 테이블 직접 권한 회수와 A CRUD 확인은 완료됐습니다. 다음 작업은 6단계 원고와 계약에 맞춰 진행합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
