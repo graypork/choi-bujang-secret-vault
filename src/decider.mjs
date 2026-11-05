@@ -57,6 +57,11 @@ function permittedZone(request) {
     const match = new RegExp(`^/api/notes/(${ITEM_SEGMENT})$`, 'u').exec(path);
     return !!match && !RESERVED_SEGMENTS.has(match[1].toLowerCase());
   }
+  // 엔진의 /notes/:id 단건 읽기 계약도 허용합니다. 목록과 기능 이름은 제외합니다.
+  if (service === 'notes' && method === 'GET' && route === 'GET /notes/:id') {
+    const match = /^\/notes\/([^/]+)$/u.exec(path);
+    return !!match && !RESERVED_SEGMENTS.has(match[1].toLowerCase());
+  }
   // 반 공지는 누구나 GET만 가능하며, 쓰기는 서버 관리 경로의 별도 책임입니다.
   if (service === 'announcements' && method === 'GET') {
     if (route === 'GET /api/announcements' && path === '/api/announcements') return true;
