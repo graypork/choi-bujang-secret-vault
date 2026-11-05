@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 5단계 「자료 요청을 서버 한곳으로 모읍니다」
+## 현재 상태: 6단계 「등록한 기기만 자료실에 들어옵니다」
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -143,6 +143,14 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 ```
 
 정상 출력은 `deny device_not_registered`입니다. 2026-11-05 로컬 가상 요청 테스트에서 등록·미등록 항목 모두 통과했고 미등록 응답의 `decision: deny`, `reasonCode: device_not_registered`를 확인했습니다. 이 확인은 운영 엔진의 실제 기기 등록이나 심판의 미등록 기기 공격 결과를 뜻하지 않습니다. 실제 미등록 기기 공격은 심판이 수행합니다. 인증서·CA·서명 키나 별도 접속 프로그램은 생성·설치하지 않습니다.
+
+## 6단계 저장점
+
+- `aleph.config.json`의 `step`은 `6`이며, 실제 배포 주소·`judgeIssuer`·`identityProvider`·메모 API 허용 경로 5개·`originalApiUrl`은 기존 값을 유지합니다.
+- `src/decider.mjs`의 유일한 규칙 `device_registered`는 `deviceRegistered === true`일 때 `allow / approved`, 미등록 또는 누락일 때 `deny / device_not_registered`를 반환합니다.
+- `npm run decider:test` 로컬 가상 요청 테스트에서 등록 기기 허용과 미등록 기기 거부 2건을 확인했습니다. 실제 심판의 미등록 기기 공격 결과는 아직 확인하지 않았습니다.
+- 기존 서버 로그인·HttpOnly 쿠키·메모 CRUD·소유권 검사는 보존했습니다. 별도 접속 프로그램이나 인증서·서명 키는 설치·생성하지 않았습니다.
+- 재확인: `npm run decider:test`; 전체 회귀 확인은 `node --test test/*.test.mjs`, `npm run build -- --local`; 저장점 커밋 후 제출 묶음은 `npm run bundle`로 실행합니다.
 
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
