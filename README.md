@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 7단계 「평소와 다른 접속은 다시 확인합니다」
+## 현재 상태: 8단계 「자료마다 갈 수 있는 구역을 나눕니다」
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -160,6 +160,16 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - `stepUp.verified === true`이고 `authAgeSeconds`가 0~300이면 같은 가상 복합 사건의 새 요청을 `allow`로 판정합니다. 이는 실제 재로그인 완료 시각이나 실제 자료 차단 실측이 아닙니다.
 - `npm run decider:test`와 `npm run fixture:7`의 가상 시험에서 정상 허용·미등록 거부·복합 이상 추가 확인·확인 후 허용을 확인했습니다. 실제 엔진의 재로그인 전 자료 차단 및 새 로그인 후 접근 허용은 **미실행**입니다.
 - 재확인: `npm run decider:test`, `npm run fixture:7`; 회귀 확인: `node --test test/*.test.mjs`, `npm run build -- --local`. `npm run bundle`은 별도 제출 묶음 점검이며 성공 여부를 따로 기록합니다.
+
+## 8단계 저장점
+
+- `aleph.config.json`의 `step`은 `8`입니다. 기존 배포 주소, `judgeIssuer`, Supabase 로그인 발급자, 원본 API 주소와 자료는 유지합니다.
+- 판정기 `resource_zone` 규칙은 서비스·메서드·정확한 경로 모양으로 메모 단건(`GET/PUT/DELETE /api/notes/:id`)과 반 공지 조회(`GET /api/announcements`, `GET /api/announcements/:id`)만 허용합니다. 메모 목록·공지 쓰기·강사 자료·알 수 없는 경로는 거부합니다. 메모 ID를 UUID로 제한하지 않으며 기능 경로를 단건 ID로 오인하지 않습니다.
+- 기존 `device_registered`, `step_up_required` 규칙을 유지합니다. `allowedRoutes`는 위 다섯 경로만 포함합니다.
+- 서버 메모 API는 검증된 사용자 ID와 저장된 `owner_id`로 단건 접근을 제한하고, 메모 목록·생성 직접 요청은 `403 RESOURCE_ZONE_DENIED`로 거부합니다. 타인 소유 메모는 `404 NOT_FOUND`로 자료를 숨깁니다. 기존 화면의 목록·추가 기능도 이 변경의 영향을 받습니다.
+- 강사 역할 저장소 및 실제 공지·강사 자료 API는 구현되지 않았습니다. 반 공지 조회는 판정기 정책만 존재하며, 실제 강사 권한 검증이 완료됐다는 뜻이 아닙니다.
+- 가상 판정 및 API 요청에서 단건 허용, 목록·쓰기·강사 자료 거부, 타인 메모 거부를 확인했습니다. 운영 심판·실제 배포 검증은 미실행입니다. 과거 단계 테스트 일부는 변경 전 `step`·`allowedRoutes`를 기대하여 실패합니다.
+- 재확인: `npm run decider:test`, `npm run fixture:7`, `node --test test/step4-owner-api.test.mjs` (과거 경로 목록 기대에 따른 실패 가능). 제출 묶음은 저장점 커밋 후 `npm run bundle`로 별도 확인합니다.
 
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
