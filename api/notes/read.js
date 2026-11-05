@@ -4,6 +4,18 @@ import { requestAuthorization } from '../../src/auth-session.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
+// 서버가 구분하는 자원 네임스페이스. 강사 공지는 아직 실제 API를 개설하지 않습니다.
+export const RESOURCE_IDS = Object.freeze({
+  notes: 'learning_notes',
+  instructorAnnouncements: 'instructor_announcements',
+});
+export function resourceId(kind, itemId) {
+  if (!Object.hasOwn(RESOURCE_IDS, kind)) throw codedError('INVALID_RESOURCE');
+  if (itemId === undefined) return RESOURCE_IDS[kind];
+  if (typeof itemId !== 'string' || !UUID.test(itemId)) throw codedError('INVALID_RESOURCE');
+  return `${RESOURCE_IDS[kind]}:${itemId.toLowerCase()}`;
+}
+
 export function codedError(code) {
   const error = new Error(code);
   error.code = code;
@@ -110,6 +122,7 @@ export default async function handler(request, response, {
   createLearningNoteImpl = createLearningNote,
 } = {}) {
   response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('X-Resource-Id', resourceId('notes'));
 
   if (!['GET', 'POST'].includes(request.method)) {
     response.setHeader('Allow', 'GET, POST');
