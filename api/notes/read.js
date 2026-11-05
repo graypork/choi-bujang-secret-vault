@@ -130,6 +130,11 @@ export default async function handler(request, response, {
     return;
   }
 
+  // 8단계: 목록 조회와 생성은 자원 구역 정책상 직접 API에서도 금지합니다.
+  // role/owner_id를 요청 본문이나 메뉴에서 읽어 예외를 만들지 않습니다.
+  response.status(403).json({ error: 'RESOURCE_ZONE_DENIED' });
+  return;
+
   const identity = await verifyRequestIdentity(request, verifyLoginAuthorization);
   if (!identity) {
     response.setHeader('WWW-Authenticate', 'Bearer');
