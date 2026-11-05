@@ -2,6 +2,7 @@ import {
   codedError,
   createNotesClient,
   normalizeNoteInput,
+  resourceId,
   verifyRequestIdentity,
 } from './read.js';
 
@@ -97,6 +98,7 @@ export default async function handler(request, response, {
 
   try {
     const id = noteId(request);
+    response.setHeader('X-Resource-Id', resourceId('notes', id));
     if (request.method === 'GET') {
       const note = await getLearningNoteImpl(identity.userId, id);
       if (!note) {
