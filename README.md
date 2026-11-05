@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 6단계 「등록한 기기만 자료실에 들어옵니다」
+## 현재 상태: 7단계 「평소와 다른 접속은 다시 확인합니다」
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -151,6 +151,15 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - `npm run decider:test` 로컬 가상 요청 테스트에서 등록 기기 허용과 미등록 기기 거부 2건을 확인했습니다. 실제 심판의 미등록 기기 공격 결과는 아직 확인하지 않았습니다.
 - 기존 서버 로그인·HttpOnly 쿠키·메모 CRUD·소유권 검사는 보존했습니다. 별도 접속 프로그램이나 인증서·서명 키는 설치·생성하지 않았습니다.
 - 재확인: `npm run decider:test`; 전체 회귀 확인은 `node --test test/*.test.mjs`, `npm run build -- --local`; 저장점 커밋 후 제출 묶음은 `npm run bundle`로 실행합니다.
+
+## 7단계 저장점
+
+- `aleph.config.json`의 `step`은 `7`입니다. 기존 배포 주소, GitHub 주소, 로그인 발급자, 심판 주소, 허용 경로와 원본 API 주소는 변경하지 않았습니다.
+- `src/decider.mjs`는 기존 `device_registered` 규칙을 유지하며 `step_up_required`를 추가했습니다. 엔진 계약의 `signals`, `recentEvents`, `stepUp`만 사용합니다.
+- 출처가 `judge_fixture`인 가상 요청에서 새벽 0~5시, `unusual` 네트워크, 최근 300초 이내 `risk_signal` 10건 이상이 함께 나타나면 `step_up / step_up_required`를 반환합니다. 지역 하나만으로 영구 차단하지 않습니다.
+- `stepUp.verified === true`이고 `authAgeSeconds`가 0~300이면 같은 가상 복합 사건의 새 요청을 `allow`로 판정합니다. 이는 실제 재로그인 완료 시각이나 실제 자료 차단 실측이 아닙니다.
+- `npm run decider:test`와 `npm run fixture:7`의 가상 시험에서 정상 허용·미등록 거부·복합 이상 추가 확인·확인 후 허용을 확인했습니다. 실제 엔진의 재로그인 전 자료 차단 및 새 로그인 후 접근 허용은 **미실행**입니다.
+- 재확인: `npm run decider:test`, `npm run fixture:7`; 회귀 확인: `node --test test/*.test.mjs`, `npm run build -- --local`. `npm run bundle`은 별도 제출 묶음 점검이며 성공 여부를 따로 기록합니다.
 
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
