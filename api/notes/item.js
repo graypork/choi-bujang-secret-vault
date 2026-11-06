@@ -6,6 +6,8 @@ import {
   verifyRequestIdentity,
 } from './read.js';
 
+import { confirmedDevice } from '../device/status.js';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 function noteId(request) {
@@ -80,6 +82,7 @@ export default async function handler(request, response, {
   getLearningNoteImpl = getLearningNote,
   updateLearningNoteImpl = updateLearningNote,
   deleteLearningNoteImpl = deleteLearningNote,
+  confirmDeviceImpl = confirmedDevice,
 } = {}) {
   response.setHeader('Cache-Control', 'no-store');
 
@@ -94,6 +97,12 @@ export default async function handler(request, response, {
   if (!identity) {
     response.setHeader('WWW-Authenticate', 'Bearer');
     response.status(401).json({ error: 'AUTH_REQUIRED' });
+    return;
+  }
+
+  const device = await confirmDeviceImpl(request);
+  if (!device.approved) {
+    response.status(403).json({ error: 'DEVICE_NOT_APPROVED' });
     return;
   }
 
