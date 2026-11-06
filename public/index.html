@@ -223,7 +223,7 @@
         ...(options.headers ?? {}),
       };
       let response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options, headers });
-      if (response.status === 401 && allowRefresh && await restoreSession()) {
+      if (response.status === 401 && allowRefresh && await restoreSession() && deviceApproved) {
         response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options, headers });
       }
       if (response.status === 401) {
