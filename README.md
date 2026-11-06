@@ -179,6 +179,14 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - `npm run detect:test` 가상 사건 6건과 추가 경계 사례 5건이 통과했습니다. 실제 운영 사건 전달·접속 회수·심판 판정은 검증하지 않았으며, 회수 API나 기기 권한은 변경하지 않았습니다.
 - 재확인: `npm run detect:test`, `npm run decider:test`. 저장점 커밋 후 `npm run bundle`로 제출 묶음을 별도 확인합니다.
 
+## 11단계 설치형 웹앱 표시 (코드 반영, 운영 검증 미실행)
+
+- 앱 이름 **BYTE BACK 자료실**. `public/manifest.webmanifest`, `public/app-icon.svg`, `public/index.html`에 manifest·테마·아이콘과 접속 앱 안내를 추가했습니다. 기존 로그인·메모 API·판정기·탐지기·RLS·허용 경로는 수정하지 않았습니다.
+- 설치 상태는 브라우저의 standalone 표시 여부만 알려 줍니다. **기기 승인 상태는 확인되지 않음**으로 고정 표시합니다. 설치 여부를 기기 등록·승인 증거로 취급하지 않습니다. 별도 접속 프로그램이나 서비스 워커는 설치·생성하지 않았습니다.
+- `navigator.onLine`은 브라우저 연결 힌트일 뿐 서버 접속 성공의 증거가 아닙니다. 오프라인에서 보호된 메모를 저장하거나 캐시하지 않으며 로그인·보호 요청에는 네트워크가 필요합니다.
+- 확인 순서 (**미실행**): `npm install && npm run build -- --local && npm run decider:test && npm run detect:test`; 브라우저에서 manifest와 설치 표시를 확인합니다. 이어 비로그인 단건 API 401, A의 본인 메모 단건 정상 응답, A→B 타인 메모 404, `GET/POST /api/notes` 403을 시험 계정으로 재확인합니다. 이 시험은 **미실행**이며 운영 배포도 미확인입니다.
+- 현재 README의 10단계 저장점에 `restoreRoute: null`이라는 오래된 설명과 복원 경로 미구현 문구가 남아 있습니다. 실제 `aleph.config.json.restoreRoute`는 `POST /api/notes/restore/:id`입니다. 이번 설치형 웹앱 변경 범위 밖이므로 해당 기록은 별도 정리가 필요합니다.
+
 ## 10단계 저장점
 
 - `aleph.config.json.step`은 `10`으로 기록합니다. 실제 배포 주소, 로그인 발급자, 심판 주소, 원본 API 주소, 기존 허용 경로는 변경하지 않았으며 `restoreRoute`는 구현 전이므로 `null`입니다.
