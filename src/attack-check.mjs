@@ -68,23 +68,19 @@ export async function runAttackChecks(config) {
       let observed = 'not_run';
       try {
         const { response, data } = await publicJson(path, app);
-        // Vercel response request ID is a lookup key, not proof that a
-        // corresponding runtime log was retrieved or matched.
+        // Only the actual HTTP response is evidence of this GET.
+        // x-vercel-id is NOT the judge's caseId or requestKey.
+        observed = `GET ${path} HTTP ${response.status}; judge_caseId=unverified; judge_requestKey=unverified`;
         const requestId = response.headers.get('x-vercel-id');
         if (requestId && /^[a-zA-Z0-9:._-]{1,120}$/u.test(requestId)) {
-          observed = `GET ${path} HTTP ${response.status}; x-vercel-id=${requestId}`;
-          const serverDate = response.headers.get('date');
-          if (serverDate && !Number.isNaN(Date.parse(serverDate))) {
-            observed += `; server-date=${new Date(serverDate).toISOString()}`;
-          }
-          if (path === '/data.json' && response.ok) {
-            const visible = data?.sampleMarker === config.sampleMarker
-              && Array.isArray(data.notes) && data.notes.length > 0;
-            observed += visible ? '; 가상 메모 표시 노출' : '; 가상 메모 표시 미확인';
-          }
+          observed += `; x-vercel-id=${requestId}`;
         }
-        // Without a response request identifier, no correlatable request
-        // record exists in this check: keep observed as not_run.
+        if (path === '/data.json' && response.ok) {
+          const visible = data?.sampleMarker === config.sampleMarker
+            && Array.isArray(data.notes) && data.notes.length > 0;
+          observed += visible ? '; 가상 메모 표시 노출' : '; 가상 메모 표시 미확인';
+        }
+        // Never invent a judge caseId/requestKey or claim a judge log match.
       } catch {
         // Network errors, redirects, and timeouts have no observed HTTP status.
       }
