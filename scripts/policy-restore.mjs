@@ -61,14 +61,14 @@ function snapshotPartial() {
   if (existsSync(manifestPath)) abort('기존 사본이 있습니다. 덮어쓰지 않습니다.');
   const copies = {
     'decider.mjs': read(join(root, 'src/decider.mjs')),
-    'allowed-routes.json': JSON.stringify(JSON.parse(read(join(root, 'aleph.config.json'))).allowedRoutes, null, 2) + '\\n',
+    'allowed-routes.json': JSON.stringify(JSON.parse(read(join(root, 'aleph.config.json'))).allowedRoutes, null, 2) + '\n',
   };
   const files = Object.entries(copies).map(([name, content]) => ({ name, sha256: sha(content) }));
   for (const [name, content] of Object.entries(copies)) write(file(name), content);
   write(manifestPath, JSON.stringify({ schema: 'aleph.policy.backup.v1', sourceCommit: version,
-    dbPolicyVerified: false, files }, null, 2) + '\\n');
-  process.stdout.write('코드·허용 경로 사본 생성, DB 정책 미확인: 복원/시험 중단 상태\\n');
-  for (const f of files) process.stdout.write(f.name + ': ' + f.sha256 + '\\n');
+    dbPolicyVerified: false, files }, null, 2) + '\n');
+  process.stdout.write('코드·허용 경로 사본 생성, DB 정책 미확인: 복원/시험 중단 상태\n');
+  for (const f of files) process.stdout.write(f.name + ': ' + f.sha256 + '\n');
 }
 function snapshot(dbExport) {
   if (!dbExport || !existsSync(resolve(dbExport))) {
