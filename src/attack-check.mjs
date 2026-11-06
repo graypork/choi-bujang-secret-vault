@@ -30,6 +30,39 @@ async function publicJson(path, app) {
 }
 
 export async function runAttackChecks(config) {
+  if (config.step === 12) {
+    // Read-only, unauthenticated live HTTP checks. Never infer a protected-user allow
+    // or a server-side revocation from these public requests.
+    const app = deploymentUrl(config);
+    const { response: staticResponse, data: staticData } = await publicJson('/data.json', app);
+    const staticVisible = staticData?.sampleMarker === config.sampleMarker
+      && Array.isArray(staticData.notes) && staticData.notes.length > 0;
+    const { response: notesResponse } = await publicJson('/api/notes', app);
+    const { response: deviceResponse } = await publicJson('/api/device/status', app);
+    const { response: manifestResponse } = await publicJson('/manifest.webmanifest', app);
+    return [
+      {
+        attackId: 'anonymous_static_note_read',
+        expected: '비로그인 /data.json에서 가상 메모가 노출되지 않음',
+        observed: `실제 GET /data.json HTTP ${staticResponse.status}; 가상 메모 표시 ${staticVisible ? '노출' : '미노출'}`,
+      },
+      {
+        attackId: 'anonymous_server_note_read',
+        expected: '비로그인 /api/notes는 401 또는 403으로 거부됨',
+        observed: `실제 GET /api/notes HTTP ${notesResponse.status}; 인증 사용자 정상 접근은 미실행`,
+      },
+      {
+        attackId: 'anonymous_device_status',
+        expected: '비로그인 /api/device/status는 인증 오류로 거부됨',
+        observed: `실제 GET /api/device/status HTTP ${deviceResponse.status}; 기기 승인/회수 실측은 미실행`,
+      },
+      {
+        attackId: 'public_app_manifest',
+        expected: '공개 앱 매니페스트 GET은 200으로 허용됨',
+        observed: `실제 GET /manifest.webmanifest HTTP ${manifestResponse.status}; 보호 자료 정상 접근은 미실행`,
+      },
+    ];
+  }
   if (config.step !== 1 && config.step !== 2) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
