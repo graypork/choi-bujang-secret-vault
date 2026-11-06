@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 10단계 「백업에서 자료실을 되살립니다」 (복원 기능 부분 구현)
+## 현재 상태: 11단계 「나만의 접속 앱을 완성합니다」 (설치형 웹앱 및 기기 승인 화면 부분 구현)
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -178,6 +178,15 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - 정확히 120건, 다른 사용자 사건의 합산, 10분 밖의 사건, GET 외 요청은 회수 제안 대상이 아닙니다. 메모 본문·토큰·실명·기기·네트워크·지역은 읽거나 출력하지 않습니다.
 - `npm run detect:test` 가상 사건 6건과 추가 경계 사례 5건이 통과했습니다. 실제 운영 사건 전달·접속 회수·심판 판정은 검증하지 않았으며, 회수 API나 기기 권한은 변경하지 않았습니다.
 - 재확인: `npm run detect:test`, `npm run decider:test`. 저장점 커밋 후 `npm run bundle`로 제출 묶음을 별도 확인합니다.
+
+## 11단계 저장점
+
+- 기준 설정: `aleph.config.json.step = 11`. 배포 주소 `https://choi-bujang-secret-vault-one-vert.vercel.app`; 기존 `identityProvider`, `judgeIssuer`, `originalApiUrl`, `allowedRoutes`, `restoreRoute` 값은 유지했습니다.
+- 웹앱: `/manifest.webmanifest`, `/app-icon.svg`와 첫 화면의 설치 상태·오프라인 안내. 설치는 기기 승인과 무관합니다.
+- 기기 승인: `GET/POST /api/device/status` 및 첫 화면의 요청·결과 표시. **검증 가능한 서버 기기 등록/승인 저장소가 없어 모든 기기는 미승인으로 처리됩니다.** POST는 503을 반환하며 승인 권한을 부여하지 않습니다.
+- 보호: `api/notes/item.js`의 GET/PUT/DELETE는 인증 후 서버의 기기 승인 확인이 실패하면 403으로 거부합니다. **승인된 기기의 정상 자료실 접근은 미완료**이며, 운영에 반영하면 기존 사용자도 차단될 수 있습니다. 기존 소유권 필터와 목록/생성 거부는 그대로입니다.
+- 재현: `npm install`, `npm run build -- --local`, `npm run decider:test`, `npm run detect:test`; 브라우저에서 설치 상태와 승인 요청 결과 확인. 승인 전 자료 미표시, 미승인 단건 403, 비로그인 단건 401, 기존 목록/생성 403을 확인합니다. **이번 저장점에서 운영 회귀·승인 기기 정상 접근·배포 검증은 미실행**입니다.
+- 제출: `bundle-notes.json`은 로컬 비공개 파일로 작성하고 `npm run bundle` 실행. 제출 JSON은 `artifacts/submission.json`에 생성하며 둘 다 커밋하지 않습니다.
 
 ## 11단계 기기 승인 요청 화면과 서버 차단 (부분 구현)
 
