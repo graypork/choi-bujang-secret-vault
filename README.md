@@ -179,6 +179,14 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - `npm run detect:test` 가상 사건 6건과 추가 경계 사례 5건이 통과했습니다. 실제 운영 사건 전달·접속 회수·심판 판정은 검증하지 않았으며, 회수 API나 기기 권한은 변경하지 않았습니다.
 - 재확인: `npm run detect:test`, `npm run decider:test`. 저장점 커밋 후 `npm run bundle`로 제출 묶음을 별도 확인합니다.
 
+## 11단계 기기 승인 요청 화면과 서버 차단 (부분 구현)
+
+- `GET /api/device/status`: 로그인 사용자에게 `approved:false,status:unverified` 반환. `POST /api/device/status`: 승인 요청 UI가 호출하지만 검증 가능한 기기 등록·승인 서버가 아직 없어 `503 approval_service_unavailable`로 거부합니다. **버튼 클릭으로 승인 처리하지 않습니다.**
+- `public/index.html`: 기기 승인 요청 버튼과 응답 표시, 서버 승인 확인 전 보호 자료·메모 편집 UI 숨김. 설치·브라우저 저장소의 기기 키를 승인 근거로 사용하지 않습니다.
+- `api/notes/item.js`: 인증 검사 후 서버 기기 확인이 실패하면 GET/PUT/DELETE 모두 `403 DEVICE_NOT_APPROVED`를 반환합니다. 현재 확인기는 검증된 승인 저장소가 없어 **항상 미승인**으로 판단합니다. 기존의 승인된 기기도 현재는 접근할 수 없습니다.
+- **미완료:** 신뢰 가능한 서버 측 기기 등록·승인·증명 확인과 승인된 기기의 정상 접근 복구. 이 상태를 11단계 완성이나 정상/거부 회귀 통과로 보고하지 않습니다. 실제 DB 정책·기존 메모·감사 기록은 변경하지 않았습니다.
+- **검증 미실행:** `npm install && npm run build -- --local`; 브라우저 로그인 후 기기 승인 요청은 503, 비승인 단건 GET은 403, 비로그인 단건 GET은 401이어야 합니다. 승인된 기기 정상 GET은 아직 검증 불가입니다.
+
 ## 11단계 설치형 웹앱 표시 (코드 반영, 운영 검증 미실행)
 
 - 앱 이름 **BYTE BACK 자료실**. `public/manifest.webmanifest`, `public/app-icon.svg`, `public/index.html`에 manifest·테마·아이콘과 접속 앱 안내를 추가했습니다. 기존 로그인·메모 API·판정기·탐지기·RLS·허용 경로는 수정하지 않았습니다.
