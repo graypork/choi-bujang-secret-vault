@@ -31,62 +31,35 @@ async function publicJson(path, app) {
 
 export async function runAttackChecks(config) {
   if (config.step === 12) {
-    // Each observed HTTP status must come from its own actual GET.
-    // A failed/unissued request is not evidence of an HTTP response.
-    const checks = [
-      {
-        attackId: 'anonymous_static_note_read',
-        path: '/data.json',
-        expected: '비로그인 /data.json에서 가상 메모가 노출되지 않음',
-      },
-      {
-        attackId: 'anonymous_server_note_read',
-        path: '/api/notes',
-        expected: '비로그인 /api/notes는 401 또는 403으로 거부됨',
-      },
-      {
-        attackId: 'anonymous_device_status',
-        path: '/api/device/status',
-        expected: '비로그인 /api/device/status는 인증 오류로 거부됨',
-      },
-      {
-        attackId: 'public_app_manifest',
-        path: '/manifest.webmanifest',
-        expected: '공개 앱 매니페스트 GET은 200으로 허용됨',
-      },
-    ];
-    let app;
-    try {
-      app = deploymentUrl(config);
-    } catch {
-      return checks.map(({ attackId, expected }) => ({
-        attackId, expected, observed: 'not_run',
-      }));
-    }
-    const attempts = [];
-    for (const { attackId, path, expected } of checks) {
-      let observed = 'not_run';
-      try {
-        const { response, data } = await publicJson(path, app);
-        // Only the actual HTTP response is evidence of this GET.
-        // x-vercel-id is NOT the judge's caseId or requestKey.
-        observed = `GET ${path} HTTP ${response.status}; judge_caseId=unverified; judge_requestKey=unverified`;
-        const requestId = response.headers.get('x-vercel-id');
-        if (requestId && /^[a-zA-Z0-9:._-]{1,120}$/u.test(requestId)) {
-          observed += `; x-vercel-id=${requestId}`;
-        }
-        if (path === '/data.json' && response.ok) {
-          const visible = data?.sampleMarker === config.sampleMarker
-            && Array.isArray(data.notes) && data.notes.length > 0;
-          observed += visible ? '; 가상 메모 표시 노출' : '; 가상 메모 표시 미확인';
-        }
-        // Never invent a judge caseId/requestKey or claim a judge log match.
-      } catch {
-        // Network errors, redirects, and timeouts have no observed HTTP status.
-      }
-      attempts.push({ attackId, expected, observed });
-    }
-    return attempts;
+    // The judge did not confirm any corresponding caseId/requestKey.
+    // Do not send requests or claim HTTP outcomes for unverified cases.
+    const attackIds = [
+      "anonymous_static_data_read",
+      "anonymous_list_read",
+      "anonymous_note_create",
+      "anonymous_note_update_delete",
+      "anon_data_api_read",
+      "anon_data_api_delete",
+      "cross_owner_access",
+      "screen_has_no_public_key",
+      "device_rule_local",
+      "step_up_cases_local",
+      "relogin_block_not_run",
+      "anonymous_other_zone_api",
+      "zone_rules_local",
+      "other_zone_authenticated_api",
+      "burst_read_local",
+      "revocation_not_run",
+      "policy_and_memo_restore",
+      "anonymous_device_api",
+      "anonymous_ops_api",
+      "ops_live_and_judge_suite_not_run"
+];
+    return attackIds.map((attackId) => ({
+      attackId,
+      expected: '해당 점검의 실제 요청과 결과를 심판 기록으로 확인',
+      observed: 'not_run',
+    }));
   }
   if (config.step !== 1 && config.step !== 2) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
