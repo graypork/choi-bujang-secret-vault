@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BYTE BACK | 자료실</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#101a28">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
@@ -37,6 +40,14 @@
     <h1>자료실</h1>
     <p>로그인한 사용자는 자신의 가상 메모 목록을 보고 새 메모를 추가할 수 있습니다.</p>
     <div class="notice">로그인과 메모 요청은 서버 함수를 통하며, 서버가 확인한 사용자와 소유권만 신뢰합니다.</div>
+
+    <section class="panel" aria-labelledby="device-title">
+      <h2 id="device-title">접속 앱 및 기기 상태</h2>
+      <p id="install-status" role="status">브라우저에서 사용 중입니다. 홈 화면에 설치할 수 있는지는 브라우저 설정에서 확인하세요.</p>
+      <p id="device-approval-status" role="status">기기 승인 상태: 확인되지 않음. 앱 설치는 기기 등록·승인을 의미하지 않습니다.</p>
+      <p id="network-status" role="status">연결 상태를 확인하는 중입니다.</p>
+      <p>오프라인에서는 로그인과 보호된 메모 조회·수정·삭제를 사용할 수 없습니다. 이 앱은 보호 자료를 오프라인에 저장하지 않습니다.</p>
+    </section>
 
     <section class="panel" aria-labelledby="auth-title">
       <h2 id="auth-title">로그인</h2>
@@ -97,6 +108,26 @@
     const noteCancel = document.querySelector('#note-cancel');
     const noteError = document.querySelector('#note-error');
     const list = document.querySelector('#notes');
+
+    const installStatus = document.querySelector('#install-status');
+    const networkStatus = document.querySelector('#network-status');
+    function updateInstallStatus() {
+      const installed = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      installStatus.textContent = installed
+        ? '홈 화면 앱 형태로 실행 중입니다. 설치 상태는 기기 승인과 별개입니다.'
+        : '브라우저에서 실행 중입니다. 지원하는 브라우저 메뉴에서 홈 화면에 추가할 수 있습니다.';
+    }
+    function updateNetworkStatus() {
+      networkStatus.textContent = navigator.onLine
+        ? '네트워크 연결 표시: 온라인. 실제 서버 연결은 요청 시 확인합니다.'
+        : '오프라인 상태입니다. 로그인 및 보호된 메모 요청은 연결 후 다시 시도하세요.';
+    }
+    updateInstallStatus();
+    updateNetworkStatus();
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', updateInstallStatus);
 
     let currentSession = null;
     let currentNotes = [];
