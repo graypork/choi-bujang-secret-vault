@@ -44,7 +44,8 @@
     <section class="panel" aria-labelledby="device-title">
       <h2 id="device-title">접속 앱 및 기기 상태</h2>
       <p id="install-status" role="status">브라우저에서 사용 중입니다. 홈 화면에 설치할 수 있는지는 브라우저 설정에서 확인하세요.</p>
-      <p id="device-approval-status" role="status">기기 승인 상태: 확인되지 않음. 앱 설치는 기기 등록·승인을 의미하지 않습니다.</p>
+      <p id="device-approval-status" role="status">기기 승인 상태: 미확인. 승인 전 보호 자료는 표시되지 않습니다.</p>
+      <button id="device-request-button" type="button" disabled>기기 승인 요청</button>
       <p id="network-status" role="status">연결 상태를 확인하는 중입니다.</p>
       <p>오프라인에서는 로그인과 보호된 메모 조회·수정·삭제를 사용할 수 없습니다. 이 앱은 보호 자료를 오프라인에 저장하지 않습니다.</p>
     </section>
@@ -110,6 +111,47 @@
     const list = document.querySelector('#notes');
 
     const installStatus = document.querySelector('#install-status');
+    const deviceApprovalStatus = document.querySelector('#device-approval-status');
+    const deviceRequestButton = document.querySelector('#device-request-button');
+    let deviceApproved = false;
+    function lockProtectedNotes() {
+      deviceApproved = false;
+      noteEditor.hidden = true;
+      currentNotes = [];
+      const item = document.createElement('li');
+      item.textContent = '기기 승인이 확인되기 전에는 보호 자료를 표시하지 않습니다.';
+      list.replaceChildren(item);
+    }
+    async function checkDeviceApproval() {
+      lockProtectedNotes();
+      try {
+        const response = await fetch('/api/device/status', { cache: 'no-store', credentials: 'same-origin' });
+        const result = await response.json();
+        deviceApproved = response.ok && result.approved === true;
+        deviceApprovalStatus.textContent = deviceApproved
+          ? '서버가 승인한 기기입니다.' : '기기 미승인 또는 확인 불가. 보호 자료는 잠겨 있습니다.';
+        deviceRequestButton.disabled = !currentSession || deviceApproved;
+        noteEditor.hidden = !currentSession || !deviceApproved;
+        return deviceApproved;
+      } catch {
+        deviceApprovalStatus.textContent = '기기 승인 상태를 확인할 수 없습니다. 보호 자료는 잠겨 있습니다.';
+        return false;
+      }
+    }
+    deviceRequestButton.addEventListener('click', async () => {
+      deviceRequestButton.disabled = true;
+      lockProtectedNotes();
+      try {
+        const response = await fetch('/api/device/status', { method: 'POST', credentials: 'same-origin', cache: 'no-store' });
+        const result = await response.json();
+        deviceApprovalStatus.textContent = result.approved === true && response.ok
+          ? '서버에서 승인 결과를 확인했습니다. 상태를 다시 확인합니다.'
+          : '승인 요청을 처리할 서버 등록 절차가 아직 준비되지 않았습니다. 자료 접근은 차단됩니다.';
+        await checkDeviceApproval();
+      } catch {
+        deviceApprovalStatus.textContent = '승인 요청 실패. 보호 자료는 잠겨 있습니다.';
+      } finally { deviceRequestButton.disabled = !currentSession || deviceApproved; }
+    });
     const networkStatus = document.querySelector('#network-status');
     function updateInstallStatus() {
       const installed = window.matchMedia('(display-mode: standalone)').matches
@@ -145,7 +187,8 @@
     function renderAuth(session) {
       signedOut.hidden = Boolean(session);
       signedIn.hidden = !session;
-      noteEditor.hidden = !session;
+      noteEditor.hidden = !session || !deviceApproved;
+      if (!session) { deviceRequestButton.disabled = true; lockProtectedNotes(); }
       userEmail.textContent = session?.user?.email ?? '';
       authError.textContent = '';
       if (!session) resetNoteForm();
@@ -170,6 +213,7 @@
       if (!session?.authenticated) return false;
       currentSession = session;
       renderAuth(session);
+      await checkDeviceApproval();
       return true;
     }
 
@@ -246,8 +290,8 @@
 
     async function loadNotes(session) {
       currentSession = session;
-      if (!session?.authenticated) {
-        showSignedOutNotes();
+      if (!session?.authenticated || !deviceApproved) {
+        lockProtectedNotes();
         return;
       }
 
