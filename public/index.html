@@ -337,6 +337,7 @@
         passwordInput.value = '';
         currentSession = result;
         renderAuth(result);
+        await checkDeviceApproval();
         await loadNotes(result);
       } finally {
         loginButton.disabled = false;
