@@ -18,7 +18,26 @@ function readEvent(event) {
 
 export function detect(events) {
   if (!Array.isArray(events)) throw new TypeError('invalid_detection_events');
-  // 현재 단계는 입력 검증만 수행합니다. 사건 원본이나 가명 사용자 ID도 출력·저장하지 않습니다.
-  for (const event of events) readEvent(event);
+  // 사건마다 계약된 세 필드만 읽고, GET 시각을 가명 사용자별로 분리합니다.
+  const readsBySubject = new Map();
+  for (const event of events) {
+    const { at, method, sub } = readEvent(event);
+    if (method !== 'GET') continue;
+    if (!readsBySubject.has(sub)) readsBySubject.set(sub, []);
+    readsBySubject.get(sub).push(Date.parse(at));
+  }
+
+  // 고정된 10분 버킷이 아닌, 어느 시작 시각에서든 10분 안의 GET을 셉니다.
+  const windowMs = 10 * 60 * 1000;
+  for (const [sub, times] of readsBySubject) {
+    times.sort((a, b) => a - b);
+    let left = 0;
+    for (let right = 0; right < times.length; right++) {
+      while (times[right] - times[left] >= windowMs) left++;
+      if (right - left + 1 > 120) {
+        return { action: 'propose_revocation', reasonCode: 'burst_read', subject: sub };
+      }
+    }
+  }
   return { action: 'observe' };
 }
