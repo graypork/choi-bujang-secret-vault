@@ -57,6 +57,19 @@ function printPlan(m) {
   process.stdout.write('변경 범위: 시험용 사본 ' + join('artifacts','policy-restore','trial','decider.mjs') + ' 한 줄만 변경\n');
   process.stdout.write('운영 코드·설정·DB 정책 변경: 없음\n');
 }
+function snapshotPartial() {
+  if (existsSync(manifestPath)) abort('기존 사본이 있습니다. 덮어쓰지 않습니다.');
+  const copies = {
+    'decider.mjs': read(join(root, 'src/decider.mjs')),
+    'allowed-routes.json': JSON.stringify(JSON.parse(read(join(root, 'aleph.config.json'))).allowedRoutes, null, 2) + '\\n',
+  };
+  const files = Object.entries(copies).map(([name, content]) => ({ name, sha256: sha(content) }));
+  for (const [name, content] of Object.entries(copies)) write(file(name), content);
+  write(manifestPath, JSON.stringify({ schema: 'aleph.policy.backup.v1', sourceCommit: version,
+    dbPolicyVerified: false, files }, null, 2) + '\\n');
+  process.stdout.write('코드·허용 경로 사본 생성, DB 정책 미확인: 복원/시험 중단 상태\\n');
+  for (const f of files) process.stdout.write(f.name + ': ' + f.sha256 + '\\n');
+}
 function snapshot(dbExport) {
   if (!dbExport || !existsSync(resolve(dbExport))) {
     abort('실제 DB 정책 내보내기 파일이 없습니다. DB 정책 확인 전 전체 백업을 만들지 않습니다.');
@@ -92,10 +105,11 @@ function simulate() {
 }
 try {
   const [command, arg] = process.argv.slice(2);
-  if (command === 'snapshot') snapshot(arg);
+  if (command === 'snapshot-partial') snapshotPartial();
+  else if (command === 'snapshot') snapshot(arg);
   else if (command === 'verify') { const m = verify(); printPlan(m); process.stdout.write('사본 해시 검증 통과\n'); }
   else if (command === 'simulate') simulate();
-  else abort('사용법: node scripts/policy-restore.mjs snapshot <DB정책 JSON> | verify | simulate');
+  else abort('사용법: node scripts/policy-restore.mjs snapshot-partial | snapshot <DB정책 JSON> | verify | simulate');
 } catch (error) {
   process.stderr.write('안전 중단: ' + error.message + '\n');
   process.exitCode = 1;
