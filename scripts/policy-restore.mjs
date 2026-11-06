@@ -103,13 +103,46 @@ function simulate() {
     '- ' + originalLines[i], '+ ' + line]);
   process.stdout.write('검증된 사본과 시험 정책의 차이만 표시:\n' + differences.join('\n') + '\n');
 }
+function restoreTrial(confirmation) {
+  const m = verify();
+  const target = join(trial, 'decider.mjs');
+  if (!existsSync(target)) abort('시험 정책 사본이 없습니다. 중단합니다.');
+  const safe = read(file('decider.mjs'));
+  const current = read(target);
+  const safeLines = safe.split('\\n');
+  const currentLines = current.split('\\n');
+  if (safeLines.length !== currentLines.length) abort('예상하지 못한 시험 정책 변경이 있습니다. 중단합니다.');
+  const changes = currentLines.flatMap((line, index) => line === safeLines[index] ? [] :
+    [{ line: index + 1, from: line, to: safeLines[index] }]);
+  if (changes.length !== 1 || !changes[0].from.includes("'resource_zone_trial'")
+      || !changes[0].to.includes("'resource_zone'")) {
+    abort('허용되지 않은 변경 범위입니다. 중단합니다.');
+  }
+  const expected = sha(current);
+  process.stdout.write('복원 기준 커밋: ' + m.sourceCommit + '\\n');
+  process.stdout.write('대상: artifacts/policy-restore/trial/decider.mjs (시험 사본만)\\n');
+  process.stdout.write('변경 줄: ' + changes[0].line + '\\n');
+  process.stdout.write('- ' + changes[0].from + '\\n+ ' + changes[0].to + '\\n');
+  process.stdout.write('다른 서비스 규칙·감사 이력·운영 코드·DB: 변경 없음\\n');
+  process.stdout.write('확인 토큰(시험 사본 SHA-256): ' + expected + '\\n');
+  if (confirmation !== expected) {
+    process.stdout.write('미적용: 위 변경을 확인한 뒤 restore <확인 토큰>으로 실행하세요.\\n');
+    return;
+  }
+  // The confirmation binds the exact trial bytes; do not overwrite if the trial changed.
+  if (sha(read(target)) !== expected) abort('확인 후 시험 정책이 변경되었습니다. 중단합니다.');
+  write(target, safe);
+  if (sha(read(target)) !== sha(safe)) abort('복원 후 해시 검증 실패');
+  process.stdout.write('시험 정책 복원 및 해시 검증 완료\\n');
+}
 try {
   const [command, arg] = process.argv.slice(2);
   if (command === 'snapshot-partial') snapshotPartial();
   else if (command === 'snapshot') snapshot(arg);
   else if (command === 'verify') { const m = verify(); printPlan(m); process.stdout.write('사본 해시 검증 통과\n'); }
   else if (command === 'simulate') simulate();
-  else abort('사용법: node scripts/policy-restore.mjs snapshot-partial | snapshot <DB정책 JSON> | verify | simulate');
+  else if (command === 'restore') restoreTrial(arg);
+  else abort('사용법: node scripts/policy-restore.mjs snapshot-partial | snapshot <DB정책 JSON> | verify | simulate | restore [확인 토큰]');
 } catch (error) {
   process.stderr.write('안전 중단: ' + error.message + '\n');
   process.exitCode = 1;
