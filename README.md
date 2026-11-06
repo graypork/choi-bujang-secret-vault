@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 8단계 「자료마다 갈 수 있는 구역을 나눕니다」
+## 현재 상태: 9단계 「도플갱어를 찾고 권한을 거둡니다」
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -76,7 +76,7 @@ curl -sS "https://choi-bujang-secret-vault-29li8pv3q-grayporks-projects.vercel.a
 
 `vercel.json`은 정적 결과물 `public`을 배포하면서 `api/` 아래의 Vercel 서버 함수도 함께 사용합니다. 빌드 명령 `npm run build`는 2단계 이후 정적 `public/data.json`을 제거하고, Vercel이 제공하는 GitHub 저장소 소유자·이름, 커밋 SHA, 배포 URL을 검증해 `public/aleph.json`을 생성합니다. `aleph.json`만으로 저장소 소유권이나 방어 성공을 인정하지 않으며 심판이 실제 공개 저장소와 배포 결과를 따로 대조합니다.
 
-`aleph.config.json`의 현재 단계는 `8`입니다. `repoUrl`과 `publicAppUrl`은 각각 저장소와 프로덕션 배포 주소를 기록합니다. `identityProvider`에는 Supabase Auth의 공개 issuer/audience/JWKS 정보가 있습니다. 현재 `allowedRoutes`는 `GET /api/notes/:id`, `PUT /api/notes/:id`, `DELETE /api/notes/:id`, `GET /api/announcements`, `GET /api/announcements/:id`, `GET /notes/:id`의 여섯 경로입니다. `GET /notes/:id`는 판정기에서 가상 요청의 단건 읽기 경로로 허용하며 실제 서버 API 경로를 새로 개설한 것은 아닙니다. `originalApiUrl`에는 쿼리 없는 Supabase REST 원본 경로를 기록하며 비밀키는 넣지 않습니다.
+`aleph.config.json`의 현재 단계는 `9`입니다. `repoUrl`과 `publicAppUrl`은 각각 저장소와 프로덕션 배포 주소를 기록합니다. `identityProvider`에는 Supabase Auth의 공개 issuer/audience/JWKS 정보가 있습니다. 현재 `allowedRoutes`는 `GET /api/notes/:id`, `PUT /api/notes/:id`, `DELETE /api/notes/:id`, `GET /api/announcements`, `GET /api/announcements/:id`, `GET /notes/:id`의 여섯 경로입니다. `GET /notes/:id`는 판정기에서 가상 요청의 단건 읽기 경로로 허용하며 실제 서버 API 경로를 새로 개설한 것은 아닙니다. `originalApiUrl`에는 쿼리 없는 Supabase REST 원본 경로를 기록하며 비밀키는 넣지 않습니다.
 
 로컬 정적 빌드만 확인할 때는 `npm run build -- --local`을 사용합니다. 이 명령은 Vercel 배포나 심판 판정을 증명하지 않습니다.
 
@@ -171,8 +171,16 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - 가상 판정 및 API 요청에서 단건 허용, 목록·쓰기·강사 자료 거부, 타인 메모 거부를 확인했습니다. 운영 심판·실제 배포 검증은 미실행입니다. 과거 단계 테스트 일부는 변경 전 `step`·`allowedRoutes`를 기대하여 실패합니다.
 - 재확인: `npm run decider:test`, `npm run fixture:7`, `node --test test/step4-owner-api.test.mjs` (과거 경로 목록 기대에 따른 실패 가능). 제출 묶음은 저장점 커밋 후 `npm run bundle`로 별도 확인합니다.
 
+## 9단계 저장점
+
+- `aleph.config.json`의 `step`은 `9`입니다. 기존 배포 주소, `judgeIssuer`, 로그인 발급자, 원본 API 주소 및 허용 경로는 유지합니다.
+- `src/detect.mjs`는 가상 사건의 `at`·`method`·`identity.sub`만 읽고, 같은 가명 사용자의 GET이 임의의 10분 구간에서 120건을 초과하면 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject: sub }`를 반환합니다. 그 밖에는 `{ action: 'observe' }`만 반환합니다.
+- 정확히 120건, 다른 사용자 사건의 합산, 10분 밖의 사건, GET 외 요청은 회수 제안 대상이 아닙니다. 메모 본문·토큰·실명·기기·네트워크·지역은 읽거나 출력하지 않습니다.
+- `npm run detect:test` 가상 사건 6건과 추가 경계 사례 5건이 통과했습니다. 실제 운영 사건 전달·접속 회수·심판 판정은 검증하지 않았으며, 회수 API나 기기 권한은 변경하지 않았습니다.
+- 재확인: `npm run detect:test`, `npm run decider:test`. 저장점 커밋 후 `npm run bundle`로 제출 묶음을 별도 확인합니다.
+
 ## 다음 단계의 코딩 도구에 전달할 규칙
 
-[AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 5단계의 서버 함수 집중 경로, 원본 API 주소 기록, 원본 테이블 직접 권한 회수와 A CRUD 확인은 완료됐습니다. 다음 작업은 9단계 「도플갱어를 찾고 권한을 거둡니다」이며, `src/detect.mjs` 변경 전 `docs/DETECT_EVENTS.md`의 사건 계약을 먼저 확인합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
+[AGENTS.md](AGENTS.md)를 먼저 읽히고 한 번에 한 제작 단위만 요청하세요. 5단계의 서버 함수 집중 경로, 원본 API 주소 기록, 원본 테이블 직접 권한 회수와 A CRUD 확인은 완료됐습니다. 9단계 탐지 규칙은 가상 사건 기준으로 구현됐으며, 운영 사건 전달·회수 집행 연결은 별도로 검증해야 합니다. 비밀번호·토큰·서버 전용 키·실제 학생 기록을 코드, Git, 제출 묶음에 넣지 않습니다.
 
 `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 반 엔진이나 운영 심판의 결과가 아닙니다. 1단계 이후 제출 묶음 계약 `aleph.defense.submission.v2`는 `scripts/bundle.mjs`에 남아 있으며, 코딩 도구가 해당 단계의 최신 배포 주소와 Git 원격을 맞춘 뒤 사용합니다.
