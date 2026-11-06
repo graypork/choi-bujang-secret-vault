@@ -2,7 +2,7 @@
 
 이 저장소는 1단계에서 만든 자료실을 단계별로 보호하는 실습 저장소입니다. 포함되는 기록은 모두 가상 자료이며 실제 학생 자료, 토큰, 비밀키를 코드나 Git에 넣지 않습니다.
 
-## 현재 상태: 9단계 「도플갱어를 찾고 권한을 거둡니다」
+## 현재 상태: 10단계 「백업에서 자료실을 되살립니다」 (복원 기능 부분 구현)
 
 로그인은 `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` 서버 함수를 통해 처리하고, 브라우저는 Supabase SDK·공개 키 대신 HttpOnly 쿠키 기반 세션을 사용합니다. 메모 목록·추가·수정·삭제는 모두 `/api/notes`와 `/api/notes/:id` 서버 함수만 사용합니다. 서버 함수는 기존 `src/verify-login.mjs`로 로그인 사용자를 확인하고 `id + owner_id` 소유권 검사를 유지하며, 서버 전용 Supabase 설정으로 `public.learning_notes`를 읽고 고칩니다. 브라우저의 `userId`·`role`이나 URL·본문의 `owner_id`는 신뢰하지 않습니다.
 
@@ -178,6 +178,14 @@ node --input-type=module -e "import {decide} from './src/decider.mjs'; const r=a
 - 정확히 120건, 다른 사용자 사건의 합산, 10분 밖의 사건, GET 외 요청은 회수 제안 대상이 아닙니다. 메모 본문·토큰·실명·기기·네트워크·지역은 읽거나 출력하지 않습니다.
 - `npm run detect:test` 가상 사건 6건과 추가 경계 사례 5건이 통과했습니다. 실제 운영 사건 전달·접속 회수·심판 판정은 검증하지 않았으며, 회수 API나 기기 권한은 변경하지 않았습니다.
 - 재확인: `npm run detect:test`, `npm run decider:test`. 저장점 커밋 후 `npm run bundle`로 제출 묶음을 별도 확인합니다.
+
+## 10단계 저장점
+
+- `aleph.config.json.step`은 `10`으로 기록합니다. 실제 배포 주소, 로그인 발급자, 심판 주소, 원본 API 주소, 기존 허용 경로는 변경하지 않았으며 `restoreRoute`는 구현 전이므로 `null`입니다.
+- `scripts/policy-restore.mjs`는 정책 사본·SHA-256, 시험 정책 변경 비교 및 확인 토큰을 이용한 **시험 사본만의 복원**을 지원합니다. DB 정책 내보내기가 확인되지 않으면 검증과 복원을 중단합니다. 실제 DB 정책은 복원하지 않습니다.
+- 시험 계정 B의 비공개 가상 메모 사본과 ID·소유자·내용 해시가 확보되지 않아 **단건 POST 복원 API는 미구현**, 실제 메모 복원은 미실행입니다. 임의의 복원 ID나 성공 결과를 기록하지 않습니다.
+- 아래 1~9단계 회귀 검증 표는 실행 순서와 기대 결과이며, 이번 저장점에서 실제 운영 검증·복구·심판 판정을 수행하지 않았습니다. 기존 소유권 검사와 정책을 유지합니다.
+- 재확인: `node scripts/policy-restore.mjs verify` (DB 사본 미확보 시 안전 중단), `npm run decider:test`, `npm run detect:test`, `npm run fixture:7`; 제출 묶음은 `npm run bundle`을 별도 실행하고 실제 결과만 기록합니다.
 
 ## 10단계 복구 후 1~9단계 회귀 검증 절차 (전 항목 미실행)
 
