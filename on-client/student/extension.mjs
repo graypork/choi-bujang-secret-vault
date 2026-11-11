@@ -273,6 +273,16 @@ export function createStudentView() {
           addText(detail, '접속 상태', description('access', event.state?.access));
           addText(detail, '세션 상태', description('session', event.state?.session));
           addText(detail, '기기 상태', description('device', event.state?.device));
+          if (Array.isArray(event.supportedActions)) {
+            for (const action of event.supportedActions) {
+              const unsupported = document.createElement('button');
+              unsupported.type = 'button';
+              unsupported.disabled = true;
+              unsupported.textContent = String(action) + ' 미지원';
+              detail.append(unsupported);
+              addText(detail, '조치 안내', '조치 실행 연결은 준비 중입니다. 요청을 전송하지 않습니다.');
+            }
+          }
           item.append(button, detail);
           list.append(item);
         }
@@ -282,7 +292,141 @@ export function createStudentView() {
       renderList();
       return root;
     },
-    renderStatus() { return '학생 구현 대기: 기기·세션·알림과 연결 점검 상태를 구분하세요.'; },
+    renderStatus({ devices, sessions, notifications, diagnostics, mode }) {
+      const root = document.createElement('section');
+      root.setAttribute('aria-label', '기기·세션·알림·도움정보');
+      const addLine = (parent, name, value) => {
+        const p = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = name + ': ';
+        const span = document.createElement('span');
+        span.textContent = String(value ?? '확인 불가');
+        p.append(strong, span);
+        parent.append(p);
+      };
+      const addSection = title => {
+        const section = document.createElement('section');
+        const heading = document.createElement('h3');
+        heading.textContent = title;
+        section.append(heading);
+        root.append(section);
+        return section;
+      };
+      const deviceLabels = {
+        compliant: '보안 기준 충족',
+        noncompliant: '보안 기준 미충족',
+        unknown: '확인 불가',
+      };
+      const sessionLabels = {
+        active: '활성',
+        expired: '만료',
+        revoked: '철회됨',
+        unknown: '확인 불가',
+      };
+      const statusLabel = (labels, value) => {
+        const code = value == null || value === '' ? 'unknown' : String(value);
+        return (Object.hasOwn(labels, code) ? labels[code] : '확인 불가') + '(' + code + ')';
+      };
+      const retry = section => addLine(section, '다시 시도', '위쪽 다시 불러오기 버튼을 직접 누르세요. 자동으로 재요청하지 않습니다.');
+      const renderResource = (title, resource, emptyText, rows, labels) => {
+        const section = addSection(title);
+        if (resource?.status === 'loading') {
+          addLine(section, '조회 상태', '불러오는 중');
+        } else if (resource?.status === 'error') {
+          const timedOut = /TIMEOUT/i.test(String(resource.error?.code ?? ''));
+          addLine(section, '조회 상태', title + (timedOut ? ' 조회 시간 초과' : ' 조회 실패'));
+          addLine(section, '오류 메시지', resource.error?.message || '확인 불가');
+          retry(section);
+        } else if (resource?.status === 'ok') {
+          if (!Array.isArray(resource.data)) {
+            addLine(section, '조회 상태', '확인 불가: 응답 형식이 올바르지 않습니다.');
+          } else if (resource.data.length === 0) {
+            addLine(section, '조회 결과', emptyText);
+          } else {
+            addLine(section, '조회 결과', '조회된 항목 ' + resource.data.length + '건');
+            for (const row of resource.data) {
+              addLine(section, rows[0], row?.[rows[1]]);
+              addLine(section, '상태', statusLabel(labels, row?.status));
+            }
+          }
+        } else {
+          addLine(section, '조회 상태', '확인 불가: 아직 조회되지 않았습니다.');
+        }
+      };
+
+      if (mode === 'demo') addLine(root, '연결 모드', '예제 자료');
+      else if (mode === 'disconnected') addLine(root, '연결 모드', '연결 없음');
+      renderResource('등록 기기', devices, '등록된 기기가 없습니다.', ['기기', 'label'], deviceLabels);
+      const sessionsSection = addSection('세션 조회 범위');
+      addLine(sessionsSection, '조회 범위', '현재 검증된 연결 한 개만 조회합니다. 과거 세션 전체 목록이 아닙니다.');
+      renderResource('현재 세션', sessions, '현재 연결이 없습니다.', ['세션 ID', 'id'], sessionLabels);
+
+      const alerts = addSection('알림');
+      if (!Array.isArray(notifications)) {
+        addLine(alerts, '알림 상태', '확인 불가');
+      } else if (notifications.length === 0) {
+        addLine(alerts, '알림 상태', '주의할 알림이 없습니다.');
+      } else {
+        for (const notification of notifications) {
+          const item = document.createElement('div');
+          addLine(item, '자료(resource)', notification?.resource);
+          addLine(item, '코드(code)', notification?.code);
+          addLine(item, '메시지', notification?.message);
+          alerts.append(item);
+        }
+      }
+
+      const diagSection = addSection('도움정보');
+      const diagKeys = [
+        ['requestId', '요청 ID'],
+        ['component', '구성 요소'],
+        ['version', '버전'],
+        ['checkedAt', '확인 시각'],
+        ['engine.mode', '엔진 모드'],
+        ['engine.code', '엔진 코드'],
+      ];
+      if (diagnostics?.status === 'loading') {
+        addLine(diagSection, '조회 상태', '도움정보 불러오는 중');
+      } else if (diagnostics?.status === 'error') {
+        const timedOut = /TIMEOUT/i.test(String(diagnostics.error?.code ?? ''));
+        addLine(diagSection, '조회 상태', timedOut ? '도움정보 조회 시간 초과' : '도움정보 조회 실패');
+        addLine(diagSection, '오류 메시지', diagnostics.error?.message || '확인 불가');
+        retry(diagSection);
+      } else if (diagnostics?.status === 'ok' && diagnostics.data && typeof diagnostics.data === 'object') {
+        const safeData = {
+          requestId: diagnostics.data.requestId,
+          component: diagnostics.data.component,
+          version: diagnostics.data.version,
+          checkedAt: diagnostics.data.checkedAt,
+          'engine.mode': diagnostics.data.engine?.mode,
+          'engine.code': diagnostics.data.engine?.code,
+        };
+        const copyLines = [];
+        for (const [key, label] of diagKeys) {
+          const value = safeData[key] == null ? '확인 불가' : String(safeData[key]);
+          addLine(diagSection, label + ' (' + key + ')', value);
+          copyLines.push(key + ': ' + value);
+        }
+        addLine(diagSection, '복사 안내', '도움 요청에 필요한 위의 점검 정보만 복사합니다.');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = '도움정보 복사';
+        const feedback = document.createElement('p');
+        feedback.setAttribute('role', 'status');
+        button.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(copyLines.join('\n'));
+            feedback.textContent = '도움정보를 클립보드에 복사했습니다.';
+          } catch {
+            feedback.textContent = '클립보드 복사에 실패했습니다. 브라우저 권한을 확인하세요.';
+          }
+        });
+        diagSection.append(button, feedback);
+      } else {
+        addLine(diagSection, '조회 상태', '도움정보 확인 불가');
+      }
+      return root;
+    },
     renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
     renderAiConnection() { return '학생 구현 대기: 모델 응답 점검과 실제 사건 설명을 구분하고 AI 오류·취소·수동 복구를 안내하세요.'; },
     renderExplanation() { return '학생 구현 대기: 선택한 사건의 근거·규칙·현재 상태와 AI 설명을 연결하세요. 제안은 자동 실행하지 않습니다.'; },
