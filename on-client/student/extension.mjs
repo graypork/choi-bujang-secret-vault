@@ -521,9 +521,27 @@ export function createStudentView() {
         const evidence = Array.isArray(event.evidence) ? event.evidence : [];
         const evidenceIds = Array.isArray(data?.evidenceIds) ? data.evidenceIds : [];
         const matchingEvidence = evidenceIds.map(id => evidence.find(item => item?.id === id));
-        if (!data || !Array.isArray(data.evidenceIds) || matchingEvidence.some(item => !item)) {
+        const missingEvidence = evidence.length === 0 || evidenceIds.length === 0;
+        const invalidEvidence = !Array.isArray(data?.evidenceIds)
+          || new Set(evidenceIds).size !== evidenceIds.length
+          || matchingEvidence.some(item => !item)
+          || evidenceIds.length !== evidence.length;
+        const invalidExecution = data?.executed !== false || data?.requiresHumanConfirmation !== true;
+        const proposals = Array.isArray(data?.proposals) ? data.proposals : [];
+        const invalidProposal = !Array.isArray(data?.proposals)
+          || proposals.some(proposal => !proposal || !Array.isArray(proposal.evidenceIds)
+            || proposal.evidenceIds.some(id => !evidenceIds.includes(id))
+            || !Array.isArray(event.supportedActions)
+            || !event.supportedActions.includes(proposal.action));
+        if (missingEvidence || invalidEvidence || invalidExecution || invalidProposal) {
           addLine('설명 상태', 'AI 설명을 표시할 수 없습니다.');
-          addLine('실패 사유', '인용한 근거 ID가 현재 사건의 근거와 일치하지 않습니다.');
+          addLine('실패 사유', invalidExecution
+            ? 'AI 설명에 실행 완료로 표시되었거나 사람 확인 조건이 일치하지 않아 사용할 수 없습니다.'
+            : invalidProposal
+              ? '제안한 조치 또는 제안의 근거가 현재 사건과 일치하지 않습니다.'
+              : missingEvidence
+                ? '설명에 필요한 사건 근거가 부족합니다.'
+                : '인용한 근거 ID가 현재 사건의 근거와 일치하지 않습니다.');
           addLine('기록 상태', '기존 보안 기록은 그대로 유지됩니다.');
         } else {
           root.setAttribute('data-student-explanation-event', String(event.id));
@@ -540,7 +558,6 @@ export function createStudentView() {
           } else {
             unknownStates.forEach(([key, label]) => addLine(label, '확인 불가(unknown)'));
           }
-          const proposals = Array.isArray(data.proposals) ? data.proposals : [];
           if (proposals.length === 0) {
             addLine('조치 제안', Array.isArray(event.supportedActions) && event.supportedActions.length === 0
               ? '연동 시스템이 지원하는 조치가 없어 제안이 없습니다(정상).'
