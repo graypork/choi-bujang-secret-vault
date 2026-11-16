@@ -533,6 +533,25 @@ export function createStudentView() {
           matchingEvidence.forEach(item => addLine('인용 근거 ' + item.id, item.text));
           const rules = Array.isArray(event.rules) ? event.rules : [];
           rules.forEach(rule => addLine('규칙 ' + rule.id, rule.text));
+          const stateNames = { access: '접속', session: '세션', device: '기기' };
+          const unknownStates = Object.entries(stateNames).filter(([key]) => event.state?.[key] === 'unknown');
+          if (unknownStates.length === 0) {
+            addLine('확인 불가 상태', '없음');
+          } else {
+            unknownStates.forEach(([key, label]) => addLine(label, '확인 불가(unknown)'));
+          }
+          const proposals = Array.isArray(data.proposals) ? data.proposals : [];
+          if (proposals.length === 0) {
+            addLine('조치 제안', Array.isArray(event.supportedActions) && event.supportedActions.length === 0
+              ? '연동 시스템이 지원하는 조치가 없어 제안이 없습니다(정상).'
+              : 'AI가 제안한 조치가 없습니다.');
+          } else {
+            proposals.forEach(proposal => {
+              addLine('제안 조치', proposal.action);
+              addLine('제안 이유', proposal.reason);
+              addLine('제안 상태', '사람 확인이 필요하며 실행되지 않았습니다.');
+            });
+          }
         }
       } else {
         addLine('설명 상태', 'AI 사건 설명 실행 전');
