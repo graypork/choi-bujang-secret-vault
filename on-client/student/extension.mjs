@@ -506,18 +506,21 @@ export function createStudentView() {
         line.append(heading, text);
         root.append(line);
       };
-      if (explanation?.status === 'ok' && event?.id != null) {
+      if (explanation?.status === 'error') {
+        addLine('설명 상태', 'AI 사건 설명 요청 실패');
+        addLine('오류 코드', explanation.error?.code || 'UNKNOWN');
+        addLine('오류 메시지', explanation.error?.message || '확인 불가');
+        addLine('실패 사유', explanation.error?.message || '원인을 확인할 수 없습니다.');
+        addLine('기록 상태', '기존 보안 기록은 그대로 유지됩니다. AI 설명 실패는 보안 기록 조회 실패를 의미하지 않습니다.');
+      } else if (event == null) {
+        addLine('설명 상태', '보안 기록에서 기록을 먼저 고르세요.');
+      } else if (explanation?.status === 'loading') {
+        addLine('설명 상태', 'AI 사건 설명 요청 중');
+      } else if (explanation?.status === 'ok' && event.id != null) {
         root.setAttribute('data-student-explanation-event', String(event.id));
         addLine('사건 ID', event.id);
         addLine('AI 설명 요약', explanation.data?.summary);
         addLine('설명 확인 시각', checkedAt);
-      } else if (explanation?.status === 'error') {
-        addLine('설명 상태', 'AI 사건 설명 요청 실패');
-        addLine('오류 코드', explanation.error?.code || 'UNKNOWN');
-        addLine('오류 메시지', explanation.error?.message || '확인 불가');
-        addLine('기록 상태', '기존 보안 기록은 그대로 유지됩니다.');
-      } else if (explanation?.status === 'loading') {
-        addLine('설명 상태', 'AI 사건 설명 요청 중');
       } else {
         addLine('설명 상태', 'AI 사건 설명 실행 전');
       }
