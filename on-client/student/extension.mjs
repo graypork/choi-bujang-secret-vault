@@ -517,10 +517,23 @@ export function createStudentView() {
       } else if (explanation?.status === 'loading') {
         addLine('설명 상태', 'AI 사건 설명 요청 중');
       } else if (explanation?.status === 'ok' && event.id != null) {
-        root.setAttribute('data-student-explanation-event', String(event.id));
-        addLine('사건 ID', event.id);
-        addLine('AI 설명 요약', explanation.data?.summary);
-        addLine('설명 확인 시각', checkedAt);
+        const data = explanation.data;
+        const evidence = Array.isArray(event.evidence) ? event.evidence : [];
+        const evidenceIds = Array.isArray(data?.evidenceIds) ? data.evidenceIds : [];
+        const matchingEvidence = evidenceIds.map(id => evidence.find(item => item?.id === id));
+        if (!data || !Array.isArray(data.evidenceIds) || matchingEvidence.some(item => !item)) {
+          addLine('설명 상태', 'AI 설명을 표시할 수 없습니다.');
+          addLine('실패 사유', '인용한 근거 ID가 현재 사건의 근거와 일치하지 않습니다.');
+          addLine('기록 상태', '기존 보안 기록은 그대로 유지됩니다.');
+        } else {
+          root.setAttribute('data-student-explanation-event', String(event.id));
+          addLine('사건 ID', event.id);
+          addLine('AI 설명(참고용)', data.summary);
+          addLine('설명 확인 시각', checkedAt);
+          matchingEvidence.forEach(item => addLine('인용 근거 ' + item.id, item.text));
+          const rules = Array.isArray(event.rules) ? event.rules : [];
+          rules.forEach(rule => addLine('규칙 ' + rule.id, rule.text));
+        }
       } else {
         addLine('설명 상태', 'AI 사건 설명 실행 전');
       }
