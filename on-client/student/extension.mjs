@@ -575,6 +575,84 @@ export function createStudentView() {
       }
       return root;
     },
-    renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
+    renderAction({ status, event, actionId, target, receipt, observation, message, confirmationExpiresAt, error } = {}) {
+      const root = document.createElement('section');
+      root.setAttribute('aria-label', '보안 조치 상태');
+
+      const addLine = (label, value) => {
+        if (value === undefined || value === null || value === '') return;
+        const line = document.createElement('p');
+        const heading = document.createElement('strong');
+        heading.textContent = label + ': ';
+        const detail = document.createElement('span');
+        detail.textContent = String(value);
+        line.append(heading, detail);
+        root.append(line);
+      };
+
+      if (event?.id != null) {
+        root.setAttribute('data-student-action-event', String(event.id));
+      }
+      if (receipt?.requestId != null) {
+        root.setAttribute('data-student-action-request', String(receipt.requestId));
+      }
+
+      const state = status ?? 'idle';
+      const effectConfirmed = state === 'succeeded' && observation?.effectApplied === true;
+      const states = {
+        idle: '아직 미실행(idle)',
+        loading: '조치 준비 또는 결과 조회 중(loading). 결과가 아직 확인되지 않았습니다.',
+        prepared: '준비됨·미실행(prepared). 실제 조치는 실행되지 않았으며 사람 확인이 필요합니다.',
+        executing: '서버에 전달 중(executing). 처리 결과와 효과는 아직 확인되지 않았습니다.',
+        pending: '서버 접수·처리 중(pending). 접수 응답(ACK)은 실제 효과 확인이 아닙니다.',
+        succeeded: effectConfirmed
+          ? '효과 확인(succeeded). 연동 시스템의 관측 결과에서 효과 적용이 확인되었습니다.'
+          : '결과 불명(unknown). succeeded 응답만으로 실제 효과를 확인할 수 없습니다. 연동 시스템 결과만 재조회하세요.',
+        denied: '거절(denied). 연동 시스템이 조치를 거절했습니다.',
+        failed: '실패(failed). 연동 시스템의 조치 처리에 실패했습니다.',
+        unknown: '결과 불명(unknown). 성공 또는 효과 없음으로 판단하지 말고 연동 시스템 결과만 재조회하세요.',
+        expired: '확인 기한 지남(expired). 조치를 다시 준비하세요.',
+        error: '요청 처리 안 됨(error). 요청 처리 상태를 확인하세요.',
+      };
+      addLine('조치 상태', Object.hasOwn(states, state)
+        ? states[state]
+        : '결과 불명(unknown). 알 수 없는 상태입니다. 연동 시스템 결과만 재조회하세요.');
+
+      addLine('사건 ID', event?.id);
+      if (Array.isArray(event?.evidence)) {
+        for (const item of event.evidence) addLine('근거 ID', item?.id);
+      }
+      addLine('조치 ID', actionId);
+      addLine('실제 대상 ID', target?.id);
+      addLine('대상 세대(generation)', target?.generation);
+      addLine('확인 기한', confirmationExpiresAt);
+      addLine('요청 ID', receipt?.requestId);
+      addLine('접수증 ID(receiptId)', receipt?.receiptId);
+      addLine('접수증 사건 ID', receipt?.eventId);
+      addLine('접수증 조치 ID', receipt?.actionId);
+      addLine('접수증 상태', receipt?.status);
+      addLine('접수증 버전(version)', receipt?.version);
+      if (receipt?.replayed !== undefined && receipt?.replayed !== null) {
+        addLine('중복 요청 재응답(replayed)', receipt.replayed);
+      }
+
+      if (effectConfirmed) {
+        addLine('효과 적용', 'effectApplied: true');
+        addLine('관측 시각', observation?.observedAt ?? '확인 불가');
+        addLine('효과 확인 접수증 ID', receipt?.receiptId ?? '확인 불가');
+      }
+      if (state === 'denied' || state === 'failed') {
+        addLine('처리 메시지', message);
+      }
+      if (state === 'error') {
+        addLine('오류 코드', error?.code);
+        addLine('오류 메시지', error?.message);
+      }
+      if (Array.isArray(event?.supportedActions) && event.supportedActions.length === 0) {
+        addLine('지원 조치', '연동 시스템이 지원하는 조치가 없어 조치 준비 버튼이 표시되지 않는 것이 정상입니다.');
+      }
+      addLine('조작 안내', '조치 준비·사람 확인·결과 재조회·조치 화면 취소는 제공 화면의 버튼을 사용하세요. 조치 화면 취소는 서버에 전달된 효과를 되돌리지 않습니다.');
+      return root;
+    },
   };
 }
