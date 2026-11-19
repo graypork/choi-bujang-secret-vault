@@ -427,7 +427,95 @@ export function createStudentView() {
       }
       return root;
     },
-    renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
+    renderVulnerabilities({ status, mode, data, error } = {}) {
+      const root = document.createElement('section');
+      root.setAttribute('aria-label', '설치 패키지 및 OSV 취약점 조회 결과');
+
+      const addLine = (parent, label, value) => {
+        if (value === undefined || value === null || value === '') return;
+        const line = document.createElement('p');
+        const heading = document.createElement('strong');
+        heading.textContent = label + ': ';
+        const detail = document.createElement('span');
+        detail.textContent = String(value);
+        line.append(heading, detail);
+        parent.append(line);
+      };
+
+      const modeNames = {
+        demo: '예제 자료',
+        connected: '연결됨',
+        disconnected: '연결 없음',
+        unknown: '확인 불가',
+      };
+      addLine(root, '연결 모드', modeNames[mode] ?? mode);
+      if (status === 'idle' || status == null) {
+        addLine(root, '조회 상태', '조회 전(idle). 아직 설치 패키지 취약점을 조회하지 않았습니다.');
+        return root;
+      }
+      if (status === 'loading') {
+        addLine(root, '조회 상태', '조회 중(loading). 이전 조회 결과는 현재 결과가 아닙니다.');
+        return root;
+      }
+      if (status === 'error') {
+        addLine(root, '조회 상태', '조회 실패(error). 취약점 없음으로 판단할 수 없습니다.');
+        addLine(root, '오류 코드', error?.code);
+        addLine(root, '오류 메시지', error?.message ?? '조회 실패 원인을 확인할 수 없습니다.');
+        return root;
+      }
+      if (status !== 'ok') {
+        addLine(root, '조회 상태', '확인 불가. 알 수 없는 조회 상태입니다.');
+        return root;
+      }
+
+      addLine(root, '조회 상태', '조회 응답 수신(ok). 상세 조회 범위를 확인하세요.');
+      const resultNames = {
+        complete: '모두 조회(complete)',
+        partial: '일부 조회 실패(partial). 확인된 결과만 표시하며 미조회 항목은 취약점 없음이 아닙니다.',
+        not_checked: '아직 조회 안 함(not_checked). 승인된 공개 조회 대상이 없거나 조회가 진행되지 않았습니다.',
+        not_configured: '조회 준비 미완료(not_configured). 조회 대상 프로젝트 설정이 필요합니다.',
+        unverifiable: 'lock 파일 확인 불가(unverifiable). 설치 버전 및 조회 결과를 검증할 수 없습니다.',
+      };
+      addLine(root, '전체 조회 결과', Object.hasOwn(resultNames, data?.status)
+        ? resultNames[data.status]
+        : '확인 불가. 전체 조회 상태가 전달되지 않았습니다.');
+      addLine(root, 'lockfileVersion', data?.lockfileVersion);
+      addLine(root, 'lockfileHash', data?.lockfileHash);
+      addLine(root, '전체 확인 시각(checkedAt)', data?.checkedAt);
+
+      const packageStates = {
+        known_vulnerabilities: '알려진 취약점 항목 있음(known_vulnerabilities)',
+        none_found: '조회 범위에서 알려진 취약점 항목 없음(none_found). 패키지 또는 앱 전체의 안전을 보장하지 않습니다.',
+        unverifiable: '조회 확인 불가(unverifiable). 전체 조회 성공으로 판단할 수 없습니다.',
+      };
+      const packages = Array.isArray(data?.packages) ? data.packages : [];
+      if (packages.length === 0) {
+        addLine(root, '패키지 목록', '표시할 조회 결과가 없습니다. 미조회 또는 설정되지 않은 상태는 취약점 없음이 아닙니다.');
+      }
+      for (const item of packages) {
+        const row = document.createElement('section');
+        row.setAttribute('aria-label', '패키지 조회 항목');
+        if (item?.name != null) row.setAttribute('data-student-package-name', String(item.name));
+        if (item?.version != null) row.setAttribute('data-student-package-version', String(item.version));
+        addLine(row, '패키지 이름', item?.name);
+        addLine(row, '설치 버전', item?.version);
+        addLine(row, '패키지 조회 상태', packageStates[item?.status] ?? '확인 불가');
+        addLine(row, '조회 출처(source)', item?.source);
+        addLine(row, '확인 시각(checkedAt)', item?.checkedAt);
+        const vulnerabilities = Array.isArray(item?.vulnerabilities) ? item.vulnerabilities : [];
+        if (item?.status === 'unverifiable' && vulnerabilities.length > 0) {
+          addLine(row, '부분 결과', '일부 확인·전체 조회 확인 불가. 이미 확인된 취약점 ID를 유지합니다.');
+        }
+        for (const vulnerability of vulnerabilities) {
+          const entry = document.createElement('div');
+          addLine(entry, '취약점 ID', vulnerability?.id);
+          addLine(entry, '취약점 수정 시각(modified)', vulnerability?.modified);
+          row.append(entry);
+        }
+        root.append(row);
+      }
+      return root;
+    },
     renderAiConnection({ status, mode, data, error, checkedAt, explanationAccepted }) {
       const root = document.createElement('section');
       root.setAttribute('aria-label', 'AI 연결 점검 결과');
